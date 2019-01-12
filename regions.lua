@@ -1,4 +1,4 @@
-
+local tr = towny.regions.size
 local main_is_protected = minetest.is_protected
 
 -- Calculate a region from the center point and radius
@@ -9,23 +9,14 @@ end
 
 -- Test to see if a position is in a region
 local function pos_in_region(pos, p1, p2)
-	return (pos.x >= p1.x and pos.y >= p1.y and pos.z >= p1.z) and
-		(pos.x <= p2.x and pos.y <= p2.y and pos.z <= p2.z)
+	return (pos.x <= p1.x and pos.y <= p1.y and pos.z <= p1.z) and
+		(pos.x >= p2.x and pos.y >= p2.y and pos.z >= p2.z)
 end
 
 local function region_equal(v1, v2)
 	return (math.floor(v1.x) == math.floor(v2.x)) and 
 		(math.floor(v1.y) == math.floor(v2.y)) and
 		(math.floor(v1.z) == math.floor(v2.z))
-end
-
-local function in_table(tbl, str)
-	for _,s in pairs(tbl) do
-		if s == str then
-			return true
-		end
-	end
-	return false
 end
 
 -- Test to see if there's already a protected node in a region
@@ -56,10 +47,11 @@ function towny.regions:build_perms(town, name, plotid)
 	end
 
 	-- Not even a town member, can't build here!
-	if not in_table(towndata.members, name) then return false end
+	if not towndata.members[name] then return false end
 
 	-- Plot build rights
 	if plotid and towndata.plots[plotid] then
+		print(plotid, dump(towndata.plots[plotid]))
 		-- This flag dictates that this member can build in all town plots, no matter if they own it or not
 		if towndata.members[name]['plot_build'] == true then return true end
 
@@ -70,7 +62,7 @@ function towny.regions:build_perms(town, name, plotid)
 
 		-- Plot owner can always build in their plot
 		if name == plot.owner then return true end
-		if in_table(plot.members, name) then
+		if plot.members[name] then
 			if towndata.flags['plot_member_build'] == false then
 				return plot.members[name]['plot_build'] == true
 			else
@@ -98,10 +90,6 @@ local function single_range(p)
 		p2 = p[2]
 	end
 	return p1,p2
-end
-
-local function intest(town, name, plotid)
-	return not towny.regions:build_perms(town, name, plotid)
 end
 
 function towny.regions:get_town_at(pos)
@@ -160,10 +148,9 @@ function towny.regions:town_claim_exists(town,p1)
 end
 
 function towny.regions:align_new_claim_block(pos,name)
-	local r = towny.regions.size
 	local closest_town,closest_block,distance = towny.regions:get_closest_town(pos,name)
 	if not closest_town then return nil end
-	if distance > (r * 2) then return nil end -- Too far
+	if distance > (tr * 2) then return nil end -- Too far
 
 	local new_pos
 	local p1,p2 = closest_block[1],closest_block[2]
@@ -171,23 +158,23 @@ function towny.regions:align_new_claim_block(pos,name)
 	-- X
 	if (pos.z <= p1.z and pos.z >= p2.z) and (p1.y >= pos.y and p2.y <= pos.y) then
 		if pos.x > p1.x then
-			new_pos = vector.add(p1, {x=r,y=0,z=0})
+			new_pos = vector.add(p1, {x=tr,y=0,z=0})
 		else
-			new_pos = vector.add(p1, {x=-r,y=0,z=0})
+			new_pos = vector.add(p1, {x=-tr,y=0,z=0})
 		end
 	-- Y
 	elseif (pos.x <= p1.x and pos.x >= p2.x) and (pos.z <= p1.z and pos.z >= p2.z) then
 		if pos.y > p1.y then
-			new_pos = vector.add(p1, {x=0,y=r,z=0})
+			new_pos = vector.add(p1, {x=0,y=tr,z=0})
 		else
-			new_pos = vector.add(p1, {x=0,y=-r,z=0})
+			new_pos = vector.add(p1, {x=0,y=-tr,z=0})
 		end
 	-- Z
 	elseif (pos.x <= p1.x and pos.x >= p2.x) and (p1.y >= pos.y and p2.y <= pos.y) then
 		if pos.z > p1.z then
-			new_pos = vector.add(p1, {x=0,y=0,z=r})
+			new_pos = vector.add(p1, {x=0,y=0,z=tr})
 		else
-			new_pos = vector.add(p1, {x=0,y=0,z=-r})
+			new_pos = vector.add(p1, {x=0,y=0,z=-tr})
 		end
 	end
 
@@ -235,7 +222,7 @@ function towny.regions:position_protected_from(pos, name)
 	local town,plot = towny.regions:get_town_at(pos)
 	if not town then return false end
 
-	return intest(town, name, plot)
+	return not towny.regions:build_perms(town, name, plot)
 end
 
 -- Finally, override is_protected

@@ -1,13 +1,4 @@
-
 local tr = towny.regions.size
-local function in_table(tbl, str)
-	for _,s in pairs(tbl) do
-		if s == str then
-			return true
-		end
-	end
-	return false
-end
 
 local function err_msg(player, msg)
 	minetest.chat_send_player(player, minetest.colorize("#ff1111", msg))
@@ -18,7 +9,7 @@ function towny:get_player_town(name)
 	for town,data in pairs(towny.towns) do
 		if data.mayor == name then
 			return town
-		elseif in_table(data.members, name) then
+		elseif data.members[name] then
 			return town
 		end
 	end
@@ -27,7 +18,7 @@ end
 
 function towny:get_town_by_name(name)
 	for town,data in pairs(towny.towns) do
-		if data.name.lower() == name.lower() then
+		if data.name:lower() == name:lower() then
 			return town
 		end
 	end
@@ -162,12 +153,11 @@ function towny:abridge_town(pos,player)
 		return err_msg(player, "You are not in any town you can modify.")
 	end
 
-	local success,message = towny.regions:remove_claim(c,t)
+	local success,message = towny.regions:remove_claim(c[1],t)
 	if not success then
 		return err_msg(player, "Failed to abandon claim block: " .. message)
 	end
 
-	table.insert(towny.regions.memloaded[t].blocks, p1)
 	data.flags["claim_blocks"] = data.flags["claim_blocks"] + 1
 	minetest.chat_send_player(player, "Successfully abandoned this claim block!")
 	towny:mark_dirty(t, true)
@@ -310,9 +300,9 @@ function towny:create_plot(pos,player)
 		return err_msg(player, "You do not have permission to create plots in this town.")
 	end
 
-	local pid = minetest.sha1(minetest.hash_node_position(c))
+	local pid = minetest.sha1(minetest.hash_node_position(c[1]))
 
-	local success,message = towny.regions:set_plot(c,t,pid)
+	local success,message = towny.regions:set_plot(c[1],t,pid)
 	if not success then
 		minetest.chat_send_player(player, "Failed to create a plot here: " .. message)
 		return false
@@ -326,8 +316,23 @@ function towny:create_plot(pos,player)
 	towny:mark_dirty(t, true)
 
 	minetest.chat_send_player(player, "Successfully created a plot!")
-	towny.regions:visualize_radius(vector.subtract(c, {x=tr/2,y=tr/2,z=tr/2}))
+	towny.regions:visualize_radius(vector.subtract(c[1], {x=tr/2,y=tr/2,z=tr/2}))
 	return true
+end
+
+local function flag_typeify(value)
+	if type(value) == "string" then
+		if value == "true" then
+			value = true
+		elseif value == "false" then
+			value = false
+		elseif tonumber(value) ~= nil then
+			value = tonumber(value)
+		elseif minetest.string_to_pos(value) ~= nil then
+			value = minetest.string_to_pos(value)
+		end
+	end
+	return value
 end
 
 function towny:set_plot_flags(pos,player,flag,value)
@@ -357,11 +362,8 @@ function towny:set_plot_flags(pos,player,flag,value)
 	end
 
 	minetest.chat_send_player(player, "Successfully set the plot flag '" .. flag .."' to '" .. value .. "'!")
-	if type(value) == "string" and minetest.string_to_pos(value) then
-		value = minetest.string_to_pos(value)
-	end
 	towny:mark_dirty(t, false)
-	plot_data.flags[flag] = value
+	plot_data.flags[flag] = flag_typeify(value)
 end
 
 function towny:set_town_flags(pos,player,flag,value)
@@ -390,11 +392,8 @@ function towny:set_town_flags(pos,player,flag,value)
 	end
 
 	minetest.chat_send_player(player, "Successfully set the town flag '" .. flag .."' to '" .. value .. "'!")
-	if type(value) == "string" and minetest.string_to_pos(value) then
-		value = minetest.string_to_pos(value)
-	end
 	towny:mark_dirty(t, false)
-	data.flags[flag] = value
+	data.flags[flag] = flag_typeify(value)
 end
 
 function towny:get_claims_total(town)
