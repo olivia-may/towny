@@ -34,6 +34,14 @@ function towny:get_town_by_name(name)
 	return nil
 end
 
+function towny:mark_dirty(town, areas)
+	towny.dirty = true
+	towny.towns[town].dirty = true
+	if areas and towny.regions.memloaded[town] then
+		towny.regions.memloaded[town].dirty = true
+	end
+end
+
 function towny:create_town(pos, player, name)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
@@ -58,7 +66,7 @@ function towny:create_town(pos, player, name)
 	-- New town information
 	local p1 = vector.add(pos, {x=tr / 2,y=tr - 1,z=tr / 2})
 	local p2 = vector.subtract(pos, {x=tr / 2,y=1,z=tr / 2})
-	local id = minetest.hash_node_position(pos)
+	local id = minetest.sha1(minetest.hash_node_position(pos))
 	local data = {
 		name = name,
 		mayor = player,
@@ -82,7 +90,7 @@ function towny:create_town(pos, player, name)
 
 	towny.towns[id] = data
 	towny.regions.memloaded[id] = regions
-	towny.dirty = true
+	towny:mark_dirty(id, true)
 
 	minetest.chat_send_player(player, "Your town has successfully been founded!")
 	minetest.chat_send_all(player .. " has started a new town called '" .. name .. "'!")
@@ -127,7 +135,7 @@ function towny:extend_town(pos,player)
 	table.insert(towny.regions.memloaded[town].blocks, p1)
 	data.flags["claim_blocks"] = data.flags["claim_blocks"] - 1
 	minetest.chat_send_player(player, "Successfully claimed this block!")
-	towny.dirty = true
+	towny:mark_dirty(town, true)
 
 	towny.regions:visualize_radius(vector.subtract(p1, {x=tr/2,y=tr/2,z=tr/2}))
 	return true
@@ -162,7 +170,7 @@ function towny:abridge_town(pos,player)
 	table.insert(towny.regions.memloaded[t].blocks, p1)
 	data.flags["claim_blocks"] = data.flags["claim_blocks"] + 1
 	minetest.chat_send_player(player, "Successfully abandoned this claim block!")
-	towny.dirty = true
+	towny:mark_dirty(t, true)
 
 	return true
 end
@@ -209,7 +217,7 @@ function towny:leave_town(player)
 		pdata.members = members
 	end
 
-	towny.dirty = true
+	towny:mark_dirty(town, false)
 	minetest.chat_send_player(player, "You successfully left the town.")
 	return true
 end
@@ -240,7 +248,7 @@ function towny:delete_town(pos,player)
 	-- Wipe the town
 	towny.towns[t] = nil
 	towny.regions.memloaded[t] = nil
-	towny.dirty = true
+	towny.flatfile:delete_all_meta(t)
 
 	minetest.chat_send_player(player, "Successfully deleted the town!")
 	minetest.chat_send_all("The town '" .. name .. "' has fell into ruin.")
@@ -271,7 +279,7 @@ function towny:delete_plot(pos,player)
 
 	towny.regions:set_plot(c,t,nil)
 	data.plots[p] = nil
-	towny.dirty = true
+	towny:mark_dirty(t, true)
 
 	minetest.chat_send_player(player, "Successfully removed the plot.")
 	return true
@@ -302,7 +310,7 @@ function towny:create_plot(pos,player)
 		return err_msg(player, "You do not have permission to create plots in this town.")
 	end
 
-	local pid = minetest.hash_node_position(c)
+	local pid = minetest.sha1(minetest.hash_node_position(c))
 
 	local success,message = towny.regions:set_plot(c,t,pid)
 	if not success then
@@ -315,7 +323,7 @@ function towny:create_plot(pos,player)
 		members = {[player] = {}},
 		flags = {},
 	}
-	towny.dirty = true
+	towny:mark_dirty(t, true)
 
 	minetest.chat_send_player(player, "Successfully created a plot!")
 	towny.regions:visualize_radius(vector.subtract(c, {x=tr/2,y=tr/2,z=tr/2}))
@@ -352,6 +360,7 @@ function towny:set_plot_flags(pos,player,flag,value)
 	if type(value) == "string" and minetest.string_to_pos(value) then
 		value = minetest.string_to_pos(value)
 	end
+	towny:mark_dirty(t, false)
 	plot_data.flags[flag] = value
 end
 
@@ -384,6 +393,7 @@ function towny:set_town_flags(pos,player,flag,value)
 	if type(value) == "string" and minetest.string_to_pos(value) then
 		value = minetest.string_to_pos(value)
 	end
+	towny:mark_dirty(t, false)
 	data.flags[flag] = value
 end
 

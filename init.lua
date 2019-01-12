@@ -13,6 +13,7 @@ towny = {
 		memloaded = {},
 	},
 	-- See "Town data structure"
+	flatfile = {},
 	towns = {},
 	chat = {},
 

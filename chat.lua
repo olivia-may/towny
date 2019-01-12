@@ -39,7 +39,7 @@ local function town_command (name, param)
 	elseif param == "visualize" then
 		towny.regions:visualize_town(town)
 		return true
-	elseif param == "delete" or param == "abandon" then
+	elseif (param == "delete" or param == "abandon") or (pr1 == "delete" or pr1 == "abandon") then
 		if towny.chat['delete_verify_' .. name] and pr2 == "I WANT TO DELETE MY TOWN" then
 			towny.chat['delete_verify_' .. name] = nil
 			return towny:delete_town(nil, name)
