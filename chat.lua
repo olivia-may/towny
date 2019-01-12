@@ -10,7 +10,98 @@ minetest.register_privilege("towny_admin", {
 	give_to_singleplayer = false
 })
 
+-- API
+
+-- Send message to all town members who are online
+function towny.chat:announce_to_members(town,message)
+	local tdata = towny.towns[town]
+	if tdata then
+		for member in pairs(tdata.members) do
+			if minetest.get_player_by_name(member) then
+				minetest.chat_send_player(member,message)
+			end
+		end
+	end
+end
+
 -- Commands
+
+local function invite_player(town,player,target)
+	local utown = towny:get_player_town(player)
+	if not utown or utown ~= town then
+		return false, "You are not in a town."
+	end
+
+	local target_town = towny:get_player_town(target)
+	if target_town then
+		return false, "This player is already in a town!"
+	end
+
+	if towny.chat.invites[town.."-"..target] then
+		return false, "This player has already been invited to join your town!"
+	end
+
+	local tdata = towny.towns[town]
+
+	minetest.chat_send_player(target, "You have been invited to join town '"..tdata.name.."' by "..player)
+	minetest.chat_send_player(target, "You can accept this invite by typing '/town invite accept' or deny '/town invite deny'")
+
+	towny.chat.invites[town.."-"..target] = { rejected = false, town = town, player = target, invited = player }
+	return true, "Player "..target.." has been invited to join your town."
+end
+
+local function join_town(town,player,from_invite)
+	local tdata = towny.towns[town]
+	if not tdata then return false, "No such town" end
+	if (not from_invite and not tdata.flags['joinable']) then return false, "You cannot join this town." end
+	towny.chat:announce_to_members(town, minetest.colorize("#02aacc", player.." has joined the town!"))
+	minetest.chat_send_player(player, "You have successfully joined the town '"..tdata.name.."'!")
+	tdata.members[player] = {}
+	return true
+end
+
+local function invite_respond(player,response)
+	local utown = towny:get_player_town(player)
+	if utown or utown ~= town then
+		return false, "You are already in a town."
+	end
+
+	for id,data in pairs(towny.chat.invites) do
+		if data.player == player then
+			if not data.rejected then
+				if response == true then
+					towny.chat.invites[id] = nil
+					return join_town(data.town,player,true)
+				else
+					towny.chat.invites[id] = { rejected = true }
+					return true, "You have rejected the join request."
+				end
+			end
+		end
+	end
+
+	return false, "You do not have any pending invites."
+end
+
+local function send_flags (player,flags,message)
+	local shiny = {}
+	for flag,value in pairs(flags) do
+		if type(value) == "table" then
+			if value.x and value.y and value.z then
+				value = minetest.pos_to_string(value)
+			else
+				value = dump(value)
+			end
+		elseif type(value) == "boolean" then
+			local str_value = "true"
+			if value == false then str_value = "false" end
+			value = str_value
+		end
+		shiny[#shiny+1] = flag..": "..value
+	end
+
+	return true, message ..": "..table.concat( shiny, ", " )
+end
 
 local function town_command (name, param)
 	if not minetest.get_player_by_name(name) then return false, "Can't run command on behalf of offline player." end
@@ -18,9 +109,28 @@ local function town_command (name, param)
 	local town = towny:get_player_town(name)
 
 	-- Pre town requirement
+	local print_town_info = nil
 
 	if (pr1 == "create" or pr1 == "new") and pr2 then
 		return towny:create_town(nil, name, pr2)
+	elseif (pr1 == "invite" and not minetest.get_player_by_name(pr2)) then
+		local tyes = pr2:lower()
+		return invite_respond(name, (tyes == "accept" or tyes == "yes" or tyes == "y"))
+	elseif pr1 == "join" and towny:get_town_by_name(pr2) and not town then
+		return join_town(pr2,name,false)
+	elseif pr1 == "show" or pr1 == "info" then
+		if towny:get_town_by_name(pr2) then
+			print_town_info = pr2
+		else
+			return false, "No such town."
+		end
+	elseif param == "" and town then
+		print_town_info = town
+	end
+
+	-- Print town information
+	if print_town_info then
+		return false, "Not yet implemented!"
 	end
 
 	if not town then
@@ -39,6 +149,11 @@ local function town_command (name, param)
 	elseif param == "visualize" then
 		towny.regions:visualize_town(town)
 		return true
+	elseif param == "flags" then
+		local flags = towny:get_flags(town)
+		if flags then
+			return send_flags(player,flags,"Flags of your town")
+		end
 	elseif (param == "delete" or param == "abandon") or (pr1 == "delete" or pr1 == "abandon") then
 		if towny.chat['delete_verify_' .. name] and pr2 == "I WANT TO DELETE MY TOWN" then
 			towny.chat['delete_verify_' .. name] = nil
@@ -49,12 +164,45 @@ local function town_command (name, param)
 				"WARNING! Deleting your town will render ALL of the buildings in it without protection!"))
 			return false, "Please run the command again with 'I WANT TO DELETE MY TOWN' in all caps written after it."
 		end
+	elseif pr1 == "kick" then
+		return towny:kick_member(town,name,pr2)
+	elseif pr1 == "set" then
+		local flag, value = string.match(pr2, "^([%a%d_-]+) (.+)$")
+		return towny:set_town_flags(nil,name,flag,value)
 	end
 
 	-- Plot management commands
 	if pr1 == "plot" then
 		local pl1, pl2 = string.match(pr2, "^([%a%d_-]+) (.+)$")
-		
+		if pr2 == "claim" then
+			return towny:claim_plot(nil,name)
+		elseif pr2 == "abandon" then
+			return towny:abandon_plot(nil,name)
+		elseif pr2 == "delete" then
+			return towny:delete_plot(nil,name)
+		elseif pr2 == "flags" then
+			local flags = towny:get_plot_flags(town,nil,name)
+			if flags then
+				return send_flags(player,flags,"Flags of this plot")
+			else
+				return false, "There's no plot here."
+			end
+		elseif pl1 == "set" and pl2 then
+			local flag, value = string.match(pl2, "^([%a%d_-]+) (.+)$")
+			return towny:set_plot_flags(nil,name,flag,value)
+		elseif pl1 == "member" and pl2 then
+			local action, user = string.match(pl2, "^([%a%d_-]+) (.+)$")
+			if action == "add" then
+				return towny:plot_member(nil,name,user,1)
+			elseif action == "remove" or action == "del" or action == "kick" then
+				return towny:plot_member(nil,name,user,0)
+			elseif action == "set" then
+				local target, flag, value = string.match(user, "^([%a%d_-]+) ([%a%d_-]+) (.+)$")
+				return towny:set_plot_member_flags(nil,name,target,flag,value)
+			end
+		end
+	elseif pr1 == "invite" and minetest.get_player_by_name(pr2) then
+		return invite_player(town,name,pr2)
 	end
 
 	return false, "Invalid command usage."

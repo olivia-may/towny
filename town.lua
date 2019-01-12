@@ -17,6 +17,7 @@ function towny:get_player_town(name)
 end
 
 function towny:get_town_by_name(name)
+	if not name then return nil end
 	for town,data in pairs(towny.towns) do
 		if data.name:lower() == name:lower() then
 			return town
@@ -165,7 +166,7 @@ function towny:abridge_town(pos,player)
 	return true
 end
 
-function towny:leave_town(player)
+function towny:leave_town(player,kick)
 	local town = towny:get_player_town(player)
 	if not town then
 		return err_msg(player, "You're not currently in a town!")
@@ -207,9 +208,37 @@ function towny:leave_town(player)
 		pdata.members = members
 	end
 
+	local msg = "You successfully left the town."
+	if kick then
+		msg = "You were kicked form town."
+	end
+
 	towny:mark_dirty(town, false)
-	minetest.chat_send_player(player, "You successfully left the town.")
+	minetest.chat_send_player(player, msg)
 	return true
+end
+
+function towny:kick_member(town,player,member)
+	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
+	local data = towny.towns[town]
+
+	if data.mayor ~= player and not towny_admin then
+		return err_msg(player, "You do not have permission to kick people from this town.")
+	end
+
+	if not data.members[member] then
+		return err_msg(player, "User "..member.." is not in this town.")
+	end
+
+	if member == data.mayor then
+		return err_msg(player, "You cannot kick the town mayor.")
+	end
+
+	if player == member then
+		return err_msg(player, "You cannot kick yourself from town.")
+	end
+
+	return towny:leave_town(member,true)
 end
 
 function towny:delete_town(pos,player)
@@ -267,7 +296,7 @@ function towny:delete_plot(pos,player)
 		return err_msg(player, "You do not have permission to delete this plot.")
 	end
 
-	towny.regions:set_plot(c,t,nil)
+	towny.regions:set_plot(c[1],t,nil)
 	data.plots[p] = nil
 	towny:mark_dirty(t, true)
 
@@ -320,12 +349,174 @@ function towny:create_plot(pos,player)
 	return true
 end
 
-local function flag_typeify(value)
+function towny:claim_plot(pos,player)
+	if not pos then
+		pos = minetest.get_player_by_name(player):get_pos()
+	end
+
+	local town = towny:get_player_town(player)
+	if not town then
+		return err_msg(player, "You're not currently in a town!")
+	end
+
+	local t,p,c = towny.regions:get_town_at(pos)
+	if not t or t ~= town then
+		return err_msg(player, "You are not in any town you can modify.")
+	end
+
+	local tdata = towny.towns[t]
+	if p ~= nil then
+		local plot_data = tdata.plots[p]
+		if plot_data.flags['claimable'] or player == tdata.mayor then
+			if plot_data.owner == player or plot_data.members[player] then
+				return err_msg(player, "You are already a member of this plot.")
+			end
+
+			-- TODO: enconomy
+			tdata.plots[p] = {
+				owner = player,
+				members = {[player] = {}},
+				flags = {},
+			}
+
+			towny:mark_dirty(t, false)
+
+			minetest.chat_send_player(player, "Successfully claimed the plot!")
+			towny.regions:visualize_radius(vector.subtract(c[1], {x=tr/2,y=tr/2,z=tr/2}))
+
+			return true
+		else
+			return err_msg(player, "This plot is not for sale.")
+		end
+	end
+
+	return towny:create_plot(pos,player)
+end
+
+function towny:abandon_plot(pos,player)
+	if not pos then
+		pos = minetest.get_player_by_name(player):get_pos()
+	end
+
+	local town = towny:get_player_town(player)
+	if not town then
+		return err_msg(player, "You're not currently in a town!")
+	end
+
+	local t,p,c = towny.regions:get_town_at(pos)
+	if not t or t ~= town then
+		return err_msg(player, "You are not in any town you can modify.")
+	end
+
+	if p == nil then
+		return err_msg(player, "There is no plot here.")
+	end
+
+	local tdata = towny.towns[t]
+	local pdata = tdata.plots[p]
+
+	if not pdata.members[player] then
+		return err_msg(player, "You are not a member of this plot.")
+	end
+
+	-- Update plot members
+	local members = {}
+	if pdata.owner == player then
+		pdata.owner = nil
+		if pdata.flags["greeting"] ~= nil then
+			pdata.flags["greeting"] = nil
+		end
+	end
+
+	for mem,dat in pairs(pdata.members) do
+		if mem ~= player then
+			-- Transfer ownership to the first other member
+			if pdata.owner == nil then
+				pdata.owner = mem
+			end
+			members[mem] = dat
+		end
+	end
+	pdata.members = members
+	towny:mark_dirty(t, false)
+	minetest.chat_send_player(player, "Successfully abandoned the plot!")
+
+	return true
+end
+
+function towny:plot_member(pos,player,member,action)
+	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
+	if not pos then
+		pos = minetest.get_player_by_name(player):get_pos()
+	end
+
+	local town = towny:get_player_town(player)
+	if not town then
+		return err_msg(player, "You're not currently in a town!")
+	end
+
+	local t,p,c = towny.regions:get_town_at(pos)
+	if not t or t ~= town then
+		return err_msg(player, "You are not in any town you can modify.")
+	end
+
+	if p == nil then
+		return err_msg(player, "There is no plot here.")
+	end
+
+	local tdata = towny.towns[t]
+	local pdata = tdata.plots[p]
+
+	if pdata.owner ~= player and player ~= tdata.mayor and not towny_admin then
+		return err_msg(player, "You do not have permission to modify this plot.")
+	end
+
+	if not tdata.members[member] then
+		return err_msg(player, "User '"..member.."' is not part of this town.")
+	end
+
+	-- Update plot members
+	local members = {}
+	local action_desc = "add yourself to"
+	if action == 0 then
+		action_desc = "remove yourself from"
+	end
+
+	if member == pdata.owner then
+		return err_msg(player, "You cannot "..action_desc.." from this plot.")
+	end
+
+	if action == 0 then
+		action_desc = "removed "..member.." from"
+		for mem,dat in pairs(pdata.members) do
+			if mem ~= member then
+				-- Transfer ownership to the first other member
+				members[mem] = dat
+			end
+		end
+	else
+		action_desc = "added "..member.." to"
+		members = pdata.members
+		members[member] = {}
+	end
+
+	pdata.members = members
+	towny:mark_dirty(t, false)
+	minetest.chat_send_player(player, "Successfully "..action_desc.." plot!")
+
+	return true
+end
+
+local function flag_typeify(value,pos)
 	if type(value) == "string" then
 		if value == "true" then
 			value = true
 		elseif value == "false" then
 			value = false
+		elseif value == "here" then
+			value = pos
+		elseif value == "none" or value == "null" or value == "nil" then
+			value = nil
 		elseif tonumber(value) ~= nil then
 			value = tonumber(value)
 		elseif minetest.string_to_pos(value) ~= nil then
@@ -335,7 +526,10 @@ local function flag_typeify(value)
 	return value
 end
 
+-- Set flags
+
 function towny:set_plot_flags(pos,player,flag,value)
+	if not flag then return false end
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
@@ -351,7 +545,7 @@ function towny:set_plot_flags(pos,player,flag,value)
 		return err_msg(player, "You are not in any town you can modify.")
 	end
 
-	if p ~= nil then
+	if p == nil then
 		return err_msg(player, "There is no plot here! Please stand in the plot you wish to modify.")
 	end
 
@@ -362,11 +556,50 @@ function towny:set_plot_flags(pos,player,flag,value)
 	end
 
 	minetest.chat_send_player(player, "Successfully set the plot flag '" .. flag .."' to '" .. value .. "'!")
+	plot_data.flags[flag] = flag_typeify(value,pos)
 	towny:mark_dirty(t, false)
-	plot_data.flags[flag] = flag_typeify(value)
+end
+
+function towny:set_plot_member_flags(pos,player,member,flag,value)
+	if not member or not flag then return false end
+	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
+	if not pos then
+		pos = minetest.get_player_by_name(player):get_pos()
+	end
+
+	local town = towny:get_player_town(player)
+	if not town and not towny_admin then
+		return err_msg(player, "You're not currently in a town!")
+	end
+
+	local t,p,c = towny.regions:get_town_at(pos)
+	if not t or (t ~= town and not towny_admin) then
+		return err_msg(player, "You are not in any town you can modify.")
+	end
+
+	if p == nil then
+		return err_msg(player, "There is no plot here! Please stand in the plot you wish to modify.")
+	end
+
+	local data = towny.towns[t]
+	local plot_data = data.plots[p]
+	if data.mayor ~= player and plot_data.owner ~= player and not towny_admin then
+		return err_msg(player, "You do not have permission to modify this plot.")
+	end
+
+	if not plot_data.members[member] then
+		return err_msg(player, "There is no such member in this plot.")
+	end
+
+	if flag == "build" then flag = "plot_build" end
+
+	minetest.chat_send_player(player, "Successfully set the plot member "..member.."'s flag '" .. flag .."' to '" .. value .. "'!")
+	plot_data.members[member][flag] = flag_typeify(value,pos)
+	towny:mark_dirty(t, false)
 end
 
 function towny:set_town_flags(pos,player,flag,value)
+	if not flag then return false end
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
@@ -392,8 +625,33 @@ function towny:set_town_flags(pos,player,flag,value)
 	end
 
 	minetest.chat_send_player(player, "Successfully set the town flag '" .. flag .."' to '" .. value .. "'!")
+	data.flags[flag] = flag_typeify(value,pos)
 	towny:mark_dirty(t, false)
-	data.flags[flag] = flag_typeify(value)
+end
+
+-- Get flags
+
+function towny:get_flags(town,plot)
+	local tdata = towny.towns[town]
+	if not tdata then return nil end
+	if not plot then return tdata.flags end
+	if not tdata.plots[plot] then return nil end
+	return tdata.plots[plot].flags
+end
+
+function towny:get_plot_flags(town,pos,player)
+	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
+	if not pos and player then
+		pos = minetest.get_player_by_name(player):get_pos()
+	end
+
+	local t,p,c = towny.regions:get_town_at(pos)
+	if not t or (t ~= town and not towny_admin) then
+		return err_msg(player, "You are not in any town you can access.")
+	end
+
+	if not t or not p then return nil end
+	return towny:get_flags(t,p)
 end
 
 function towny:get_claims_total(town)

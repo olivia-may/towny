@@ -3,19 +3,23 @@
 
 local modpath = minetest.get_modpath(minetest.get_current_modname())
 towny = {
-	claimbonus = minetest.settings:get('towny_claim_bonus') or 8,
-	regions = {
-		size = minetest.settings:get('towny_claim_size') or 16,
-		maxclaims = minetest.settings:get('towny_claim_max') or 128,
-		distance = minetest.settings:get('towny_distance') or 80,
+	claimbonus = tonumber(minetest.settings:get('towny_claim_bonus')) or 8,
+	regions    = {
+		size      = tonumber(minetest.settings:get('towny_claim_size')) or 16,
+		maxclaims = tonumber(minetest.settings:get('towny_claim_max')) or 128,
+		distance  = tonumber(minetest.settings:get('towny_distance')) or 80,
 
 		-- Regions loaded into memory cache, see "Town regions data structure"
 		memloaded = {},
 	},
 	-- See "Town data structure"
 	flatfile = {},
-	towns = {},
-	chat = {},
+	towns    = {},
+	chat     = {
+		chatmod      = (minetest.settings:get('towny_chat') == "true") or true,
+		questionaire = (minetest.settings:get('towny_questionaire') == "true") or true,
+		invites      = {},
+	},
 
 	-- Set to true if files need to be updated
 	dirty = false,
