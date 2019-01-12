@@ -8,8 +8,8 @@ function towny.flatfile:write_meta(town,dir,data)
 	local filepath  = town.."."..extension
 	minetest.mkdir(directory)
 
-	if data.dirty then data.dirty = nil end
-	if data.level then data.level = nil end
+	data.dirty = nil
+	data.level = nil
 
 	local serialized
 	if serialize then

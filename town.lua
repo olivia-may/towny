@@ -12,6 +12,45 @@ local function count(T)
 	return count
 end
 
+local function flag_typeify(value,pos)
+	if type(value) == "string" then
+		if value == "true" then
+			value = true
+		elseif value == "false" then
+			value = false
+		elseif value == "here" and pos then
+			value = pos
+		elseif value == "none" or value == "null" or value == "nil" then
+			value = nil
+		elseif tonumber(value) ~= nil then
+			value = tonumber(value)
+		elseif minetest.string_to_pos(value) ~= nil then
+			value = minetest.string_to_pos(value)
+		end
+	end
+	return value
+end
+
+local function flag_validity(flag,scope,value,pos)
+	value = flag_typeify(value,pos)
+	if value == nil then return true end
+	local spd = towny.flags[scope]
+	if type(spd[flag]) == "string" then
+		flag = spd[flag]
+	end
+
+	if not spd[flag] then return false end
+	if spd[flag][3] == false then return false end
+
+	if spd[flag][1] == "vector" and (not value.x or not value.y or not value.z) then
+		return false
+	elseif spd[flag][1] ~= "vary" and type(value) ~= spd[flag][1] then
+		return false
+	end
+
+	return true, flag, value
+end
+
 function towny:get_player_town(name)
 	for town,data in pairs(towny.towns) do
 		if data.mayor == name then
@@ -515,25 +554,6 @@ function towny:plot_member(pos,player,member,action)
 	return true
 end
 
-local function flag_typeify(value,pos)
-	if type(value) == "string" then
-		if value == "true" then
-			value = true
-		elseif value == "false" then
-			value = false
-		elseif value == "here" then
-			value = pos
-		elseif value == "none" or value == "null" or value == "nil" then
-			value = nil
-		elseif tonumber(value) ~= nil then
-			value = tonumber(value)
-		elseif minetest.string_to_pos(value) ~= nil then
-			value = minetest.string_to_pos(value)
-		end
-	end
-	return value
-end
-
 -- Set flags
 
 function towny:set_plot_flags(pos,player,flag,value)
@@ -563,9 +583,13 @@ function towny:set_plot_flags(pos,player,flag,value)
 		return err_msg(player, "You do not have permission to modify this plot.")
 	end
 
-	minetest.chat_send_player(player, ("Successfully set the plot flag '%s' to '%s'!")
-		:format(flag, value))
-	plot_data.flags[flag] = flag_typeify(value,pos)
+	local fs,flag,res = flag_validity(flag, 'plot', value, pos)
+	if not fs then
+		return err_msg(player, "Invalid flag or flag value.")
+	end
+
+	minetest.chat_send_player(player, ("Successfully set the plot flag '%s' to '%s'!"):format(flag, value))
+	plot_data.flags[flag] = res
 	towny:mark_dirty(t, false)
 end
 
@@ -600,11 +624,14 @@ function towny:set_plot_member_flags(pos,player,member,flag,value)
 		return err_msg(player, "There is no such member in this plot.")
 	end
 
-	if flag == "build" then flag = "plot_build" end
+	local fs,flag,res = flag_validity(flag, 'plot_member', value, pos)
+	if not fs then
+		return err_msg(player, "Invalid flag or flag value.")
+	end
 
 	minetest.chat_send_player(player, ("Successfully set the plot member %s's flag '%s' to '%s'!")
 		:format(member, flag, value))
-	plot_data.members[member][flag] = flag_typeify(value,pos)
+	plot_data.members[member][flag] = res
 	towny:mark_dirty(t, false)
 end
 
@@ -630,12 +657,50 @@ function towny:set_town_flags(pos,player,flag,value)
 		return err_msg(player, "You do not have permission to modify this town.")
 	end
 
-	if (flag == 'bank' or flag == 'claim_blocks' or flag == 'origin') and not towny_admin then
-		return err_msg(player, "You cannot change this flag.")
+	local fs,flag,res = flag_validity(flag, 'town', value, pos)
+	if not fs then
+		return err_msg(player, "Invalid flag or invalid or unchangeable flag value.")
 	end
 
 	minetest.chat_send_player(player, ("Successfully set the town flag '%s' to '%s'!"):format(flag,value))
-	data.flags[flag] = flag_typeify(value,pos)
+	data.flags[flag] = res
+	towny:mark_dirty(t, false)
+end
+
+function towny:set_town_member_flags(pos,player,member,flag,value)
+	if not member or not flag then return false end
+	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
+	if not pos then
+		pos = minetest.get_player_by_name(player):get_pos()
+	end
+
+	local town = towny:get_player_town(player)
+	if not town and not towny_admin then
+		return err_msg(player, "You're not currently in a town!")
+	end
+
+	local t,p,c = towny.regions:get_town_at(pos)
+	if not t or (t ~= town and not towny_admin) then
+		return err_msg(player, "You are not in any town you can modify.")
+	end
+
+	local data = towny.towns[t]
+	if data.mayor ~= player and not towny_admin then
+		return err_msg(player, "You do not have permission to modify this town.")
+	end
+
+	if not data.members[member] then
+		return err_msg(player, "There is no such member in this town.")
+	end
+
+	local fs,flag,res = flag_validity(flag, 'town_member', value, pos)
+	if not fs then
+		return err_msg(player, "Invalid flag or flag value.")
+	end
+
+	minetest.chat_send_player(player, ("Successfully set the town member %s's flag '%s' to '%s'!")
+		:format(member, flag, value))
+	data.members[member][flag] = res
 	towny:mark_dirty(t, false)
 end
 
@@ -695,6 +760,13 @@ function towny:get_member_count(town)
 	return count(tdata.members)
 end
 
+function towny:get_full_name(town)
+	local tdata = towny.towns[town]
+	if not tdata then return nil end
+	if not tdata.level then return tdata.name end
+	return ("%s (%s)"):format(tdata.name, tdata.level.name_tag)
+end
+
 function towny:get_town_level(town, update)
 	local tdata = towny.towns[town]
 	if not tdata then return nil end
@@ -708,3 +780,16 @@ function towny:get_town_level(town, update)
 	tdata.level = lvl
 	return lvl
 end
+
+minetest.register_on_joinplayer(function (player)
+	local town = towny:get_player_town(player:get_player_name())
+	if not town then return end
+
+	local tdata = towny.towns[town]
+	if not tdata then return nil end
+	if not tdata.flags["greeting"] then return nil end
+
+	minetest.chat_send_player(player:get_player_name(),
+		minetest.colorize("#078e36", ("[%s] "):format(towny:get_full_name(town))) ..
+		minetest.colorize("#02aacc", tdata.flags["greeting"]))
+end)

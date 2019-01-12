@@ -115,7 +115,7 @@ local function town_command (name, param)
 	local town = towny:get_player_town(name)
 
 	-- Pre town requirement
-	local print_town_info = nil
+	local town_info = nil
 
 	if (pr1 == "create" or pr1 == "new") and pr2 then
 		return towny:create_town(nil, name, pr2)
@@ -125,16 +125,16 @@ local function town_command (name, param)
 		return join_town(pr2,name,false)
 	elseif pr1 == "show" or pr1 == "info" then
 		if towny:get_town_by_name(pr2) then
-			print_town_info = pr2
+			town_info = pr2
 		else
 			return false, "No such town."
 		end
 	elseif param == "" and town then
-		print_town_info = town
+		town_info = town
 	end
 
 	-- Print town information
-	if print_town_info then
+	if town_info then
 		return false, "Not yet implemented!"
 	end
 
@@ -169,11 +169,26 @@ local function town_command (name, param)
 				"WARNING! Deleting your town will render ALL of the buildings in it without protection!"))
 			return false, "Please run the command again with 'I WANT TO DELETE MY TOWN' in all caps written after it."
 		end
+	elseif param == "greeting" then
+		local tdata = towny.towns[town]
+		if not tdata.flags["greeting"] then return false, "This town has no greeting message." end
+
+		return true,
+			minetest.colorize("#078e36", ("[%s] "):format(towny:get_full_name(town))) ..
+			minetest.colorize("#02aacc", tdata.flags["greeting"])
 	elseif pr1 == "kick" then
 		return towny:kick_member(town,name,pr2)
 	elseif pr1 == "set" then
 		local flag, value = string.match(pr2, "^([%a%d_-]+) (.+)$")
 		return towny:set_town_flags(nil,name,flag,value)
+	elseif pr1 == "member" then
+		local action, user = string.match(pr2, "^([%a%d_-]+) (.+)$")
+		if action == "kick" then
+			return towny:kick_member(town,name,pr2)
+		elseif action == "set" then
+			local target, flag, value = string.match(user, "^([%a%d_-]+) ([%a%d_-]+) (.+)$")
+			return towny:set_town_member_flags(nil,name,target,flag,value)
+		end
 	end
 
 	-- Plot management commands
