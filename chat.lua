@@ -233,3 +233,11 @@ minetest.register_chatcommand("town", {
 	privs = {towny = true},
 	func = town_command
 })
+
+minetest.register_chatcommand("plot", {
+	description = "Manage your town plot",
+	privs = {towny = true},
+	func = function (name, param)
+		return town_command(name, "plot " .. param)
+	end
+})
