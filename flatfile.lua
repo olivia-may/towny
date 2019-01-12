@@ -1,13 +1,22 @@
 
+local extension = "lua"
+local serialize = true
+
 function towny.flatfile:write_meta(town,dir,data)
 	local world     = minetest.get_worldpath()
 	local directory = world.."/towny/"..dir
-	local filepath  = town..".json"
+	local filepath  = town.."."..extension
 	minetest.mkdir(directory)
 
 	if data.dirty then data.dirty = nil end
 
-	local serialized = minetest.serialize(data)
+	local serialized
+	if serialize then
+		serialized = minetest.serialize(data)
+	else
+		serialized = minetest.write_json(data)
+	end
+
 	if not serialized then return end
 
 	minetest.safe_file_write(directory.."/"..filepath, serialized)
@@ -26,7 +35,15 @@ function towny.flatfile:load_meta(filepath)
 	end
 
 	file:close()
-	return minetest.deserialize(str)
+
+	local data
+	if serialize then
+		data = minetest.deserialize(str)
+	else
+		data = minetest.parse_json(str)
+	end
+
+	return data
 end
 
 function towny.flatfile:save_town_meta(town)
@@ -57,8 +74,8 @@ function towny.flatfile:load_all_towns()
 
 	local metas = minetest.get_dir_list(metadir, false)
 	for _,file in pairs(metas) do
-		if file:match(".json$") then
-			local town = file:gsub(".json","")
+		if file:match("."..extension.."$") then
+			local town = file:gsub("."..extension,"")
 			minetest.after(0.1, function ()
 				local towndata = towny.flatfile:load_meta(metadir.."/"..file)
 				if not towndata then return end
@@ -72,8 +89,8 @@ function towny.flatfile:load_all_towns()
 
 	local regions = minetest.get_dir_list(regiondir, false)
 	for _,file in pairs(regions) do
-		if file:match(".json$") then
-			local town = file:gsub(".json","")
+		if file:match("."..extension.."$") then
+			local town = file:gsub("."..extension,"")
 			minetest.after(0.1, function ()
 				local regiondata = towny.flatfile:load_meta(regiondir.."/"..file)
 				if not regiondata then return end
@@ -85,7 +102,7 @@ end
 
 function towny.flatfile:delete_all_meta(town)
 	local world = minetest.get_worldpath()
-	local file  = town..".json"
+	local file  = town.."."..extension
 
 	for _,d in pairs(ldirs) do
 		local dir = world.."/towny/"..d
@@ -95,19 +112,24 @@ function towny.flatfile:delete_all_meta(town)
 end
 
 local clock = 0
+local saving = false
 local function carrier_tick()
-	if not towny.dirty then return end
+	if not towny.dirty or saving then return end
+	saving = true
+
 	for town,data in pairs(towny.towns) do
 		if data.dirty then
 			towny.flatfile:save_town_meta(town)
 		end
 	end
+
 	towny.dirty = false
+	saving = false
 end
 
 -- Register
 minetest.register_globalstep(function (dt)
-	clock = clock + ((1 * dt) + 1)
+	clock = clock + (dt + 1)
 	if clock >= 60 then
 		carrier_tick()
 		clock = 0
