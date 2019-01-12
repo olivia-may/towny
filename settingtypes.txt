@@ -1,0 +1,40 @@
+
+# Claims settings
+##################
+
+# Towny claim diameter
+towny_claim_size (Claim size) int 16
+
+# Towny max claim blocks
+towny_claim_max (Max town claims) int 128
+
+# Towny max claim blocks
+towny_claim_bonus (Claim blocks added per new member) int 8
+
+# Minimum distance between towns (in claim blocks)
+towny_distance (Max town claims) int 80
+
+# Prevent protectors from being placed in a town
+# Towns provide their own protection
+# Recommended to be kept as true, may cause issues with claims otherwise
+towny_prevent_protector (Prevent protectors from being placed in a town) bool true
+
+# Chat settings
+################
+
+# Set to false if you have any other mods that alter the way player-sent messages look
+towny_chat (Allow towny to modify the chat) bool true
+
+# If true, players must be invited into towns (No direct joining)
+towny_questionaire (Invite-based membership) bool true
+
+# Other settings
+#################
+
+towny_eco (Enable economy) bool false
+towny_tax (Enable taxation) bool false
+
+# Units depend on economy mod used in server
+towny_create_cost (Town creation cost) int 10000
+towny_claim_cost (Town claim block cost) int 1000
+towny_upkeep_cost (Town upkeep cost, multiplied by member count) int 10
