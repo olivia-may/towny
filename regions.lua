@@ -1,11 +1,6 @@
 local tr = towny.regions.size
+local th = towny.regions.height
 local main_is_protected = minetest.is_protected
-
--- Calculate a region from the center point and radius
-local function region_from_diameter(center, diameter)
-	local r = {x = diameter / 2, y = diameter / 2, z = diameter / 2}
-	return vector.subtract(center, r), vector.add(center, r)
-end
 
 -- Test to see if a position is in a region
 local function pos_in_region(pos, p1, p2)
@@ -51,7 +46,6 @@ function towny.regions:build_perms(town, name, plotid)
 
 	-- Plot build rights
 	if plotid and towndata.plots[plotid] then
-		print(plotid, dump(towndata.plots[plotid]))
 		-- This flag dictates that this member can build in all town plots, no matter if they own it or not
 		if towndata.members[name]['plot_build'] == true then return true end
 
@@ -84,7 +78,7 @@ local function single_range(p)
 	local p1,p2
 	if p.x then
 		p1 = p
-		p2 = vector.subtract(p, {x=towny.regions.size,y=towny.regions.size,z=towny.regions.size})
+		p2 = vector.subtract(p, {x=tr,y=th,z=tr})
 	elseif #p == 2 then
 		p1 = p[1]
 		p2 = p[2]
@@ -126,7 +120,8 @@ function towny.regions:get_closest_town(pos,name)
 		if count and vector.distance(pos, regions.origin) <= towny.regions.size * towny.regions.maxclaims then
 			for _,tc in pairs(regions.blocks) do
 				local p1,p2 = single_range(tc)
-				local dist = vector.distance(pos, p1)
+				local center = vector.subtract(p1, {x=tr/2,y=th/2,z=tr/2})
+				local dist = vector.distance(pos, center)
 				if dist < last_distance or last_distance == 0 then
 					last_distance = dist
 					in_town = town
@@ -150,7 +145,7 @@ end
 function towny.regions:align_new_claim_block(pos,name)
 	local closest_town,closest_block,distance = towny.regions:get_closest_town(pos,name)
 	if not closest_town then return nil end
-	if distance > (tr * 2) then return nil end -- Too far
+	if distance > (tr + th) then return nil end -- Too far
 
 	local new_pos
 	local p1,p2 = closest_block[1],closest_block[2]
@@ -165,9 +160,9 @@ function towny.regions:align_new_claim_block(pos,name)
 	-- Y
 	elseif (pos.x <= p1.x and pos.x >= p2.x) and (pos.z <= p1.z and pos.z >= p2.z) then
 		if pos.y > p1.y then
-			new_pos = vector.add(p1, {x=0,y=tr,z=0})
+			new_pos = vector.add(p1, {x=0,y=th,z=0})
 		else
-			new_pos = vector.add(p1, {x=0,y=-tr,z=0})
+			new_pos = vector.add(p1, {x=0,y=-th,z=0})
 		end
 	-- Z
 	elseif (pos.x <= p1.x and pos.x >= p2.x) and (p1.y >= pos.y and p2.y <= pos.y) then
@@ -186,7 +181,7 @@ function towny.regions:remove_claim(p1,town)
 	local blocks = {}
 	if not towny.regions.memloaded[town] then return false, "This town does not exist anymore." end
 	for _,pos in pairs(towny.regions.memloaded[town].blocks) do
-		if pos['plot'] and towny.towns[town].plots[pos['plot']] then
+		if region_equal(p1, pos) and pos['plot'] and towny.towns[town].plots[pos['plot']] then
 			return false, "This town claim defines a plot. Please remove the plot before removing the claim!"
 		elseif region_equal(p1, pos) and pos['origin'] == true then
 			return false, "This town claim is the origin of this town!"
@@ -214,7 +209,7 @@ function towny.regions:visualize_town(town)
 	if not towny.regions.memloaded[town] then return end
 	for _,pos in pairs(towny.regions.memloaded[town].blocks) do
 		towny.regions:visualize_radius(vector.subtract(pos,
-			{x=towny.regions.size/2,y=towny.regions.size/2,z=towny.regions.size/2}))
+			{x=tr/2,y=th/2,z=tr/2}))
 	end
 end
 

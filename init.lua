@@ -3,9 +3,9 @@
 
 local modpath = minetest.get_modpath(minetest.get_current_modname())
 towny = {
-	claimbonus = tonumber(minetest.settings:get('towny_claim_bonus')) or 8,
 	regions    = {
 		size      = tonumber(minetest.settings:get('towny_claim_size')) or 16,
+		height    = tonumber(minetest.settings:get('towny_claim_height')) or 64,
 		maxclaims = tonumber(minetest.settings:get('towny_claim_max')) or 128,
 		distance  = tonumber(minetest.settings:get('towny_distance')) or 80,
 
@@ -19,6 +19,54 @@ towny = {
 		chatmod      = (minetest.settings:get('towny_chat') == "true") or true,
 		questionaire = (minetest.settings:get('towny_questionaire') == "true") or true,
 		invites      = {},
+	},
+	levels = {
+		{
+			members = 0,
+			name_tag = 'Ruins',
+			mayor_tag = 'Spirit',
+			claimblocks = 1,
+		}, {
+			members = 1,
+			name_tag = 'Settlement',
+			mayor_tag = 'Hermit',
+			claimblocks = 16,
+		}, {
+			members = 2,
+			name_tag = 'Hamlet',
+			mayor_tag = 'Chief',
+			claimblocks = 32,
+		}, {
+			members = 6,
+			name_tag = 'Village',
+			mayor_tag = 'Baron Von',
+			claimblocks = 96,
+		}, {
+			members = 10,
+			name_tag = 'Town',
+			mayor_tag = 'Viscount',
+			claimblocks = 160,
+		}, {
+			members = 14,
+			name_tag = 'Large Town',
+			mayor_tag = 'Count Von',
+			claimblocks = 224,
+		}, {
+			members = 20,
+			name_tag = 'City',
+			mayor_tag = 'Earl',
+			claimblocks = 320,
+		}, {
+			members = 24,
+			name_tag = 'Large City',
+			mayor_tag = 'Duke',
+			claimblocks = 384,
+		}, {
+			members = 28,
+			name_tag = 'Metropolis',
+			mayor_tag = 'Lord',
+			claimblocks = 448,
+		}
 	},
 
 	-- Set to true if files need to be updated
@@ -65,9 +113,9 @@ towny = {
 	'plot_pvp' 			boolean		default plot pvp setting. defaults to false
 	'joinable' 			boolean 	if true, anyone can join this town. defaults to false
 	'greeting' 			string 		town's greeting message
-	'plot_tax' 			float 		how much each plot costs each day (only with economy)
+	'tax' 				float 		how much each member has to pay each day to stay in town (only with economy)
 	'bank' 				float 		town's wealth (only with economy) (unchangeable by owner)
-	'claim_blocks'		int 		town's available claim blocks (unchangeable by owner)
+	'claim_blocks'		int 		town's bonus claim blocks (unchangeable by owner)
 	'origin'			position	town's center position, set at town creation (unchangeable by owner)
 ]]
 

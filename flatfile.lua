@@ -9,6 +9,7 @@ function towny.flatfile:write_meta(town,dir,data)
 	minetest.mkdir(directory)
 
 	if data.dirty then data.dirty = nil end
+	if data.level then data.level = nil end
 
 	local serialized
 	if serialize then
@@ -47,18 +48,17 @@ function towny.flatfile:load_meta(filepath)
 end
 
 function towny.flatfile:save_town_meta(town)
-	if not towny.towns[town] then return end
 	local tmeta = towny.towns[town]
-	if tmeta.dirty then
+	if tmeta and tmeta.dirty then
+		towny:get_town_level(town, true)
 		minetest.after(0.1, function ()
 			towny.flatfile:write_meta(town,"meta",tmeta)
 			tmeta.dirty = false
 		end)
 	end
 
-	if not towny.regions.memloaded[town] then return end
 	local rmeta = towny.regions.memloaded[town]
-	if rmeta.dirty then
+	if rmeta and rmeta.dirty then
 		minetest.after(0.2, function ()
 			towny.flatfile:write_meta(town,"region",rmeta)
 			rmeta.dirty = false
@@ -80,6 +80,7 @@ function towny.flatfile:load_all_towns()
 				local towndata = towny.flatfile:load_meta(metadir.."/"..file)
 				if not towndata then return end
 				towny.towns[town] = towndata
+				towny:get_town_level(town, true)
 			end)
 		end
 	end

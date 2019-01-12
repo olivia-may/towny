@@ -32,6 +32,10 @@ local function invite_player(town,player,target)
 		return false, "You are not in a town."
 	end
 
+	if not minetest.get_player_by_name(target) then
+		return false, "You can only invite online players to your town."
+	end
+
 	local target_town = towny:get_player_town(target)
 	if target_town then
 		return false, "This player is already in a town!"
@@ -43,11 +47,12 @@ local function invite_player(town,player,target)
 
 	local tdata = towny.towns[town]
 
-	minetest.chat_send_player(target, "You have been invited to join town '"..tdata.name.."' by "..player)
+	minetest.chat_send_player(target, ("You have been invited to join town '%s' by %s")
+		:format(tdata.name, player))
 	minetest.chat_send_player(target, "You can accept this invite by typing '/town invite accept' or deny '/town invite deny'")
 
 	towny.chat.invites[town.."-"..target] = { rejected = false, town = town, player = target, invited = player }
-	return true, "Player "..target.." has been invited to join your town."
+	return true, ("Player %s has been invited to join your town."):format(target)
 end
 
 local function join_town(town,player,from_invite)
@@ -55,8 +60,9 @@ local function join_town(town,player,from_invite)
 	if not tdata then return false, "No such town" end
 	if (not from_invite and not tdata.flags['joinable']) then return false, "You cannot join this town." end
 	towny.chat:announce_to_members(town, minetest.colorize("#02aacc", player.." has joined the town!"))
-	minetest.chat_send_player(player, "You have successfully joined the town '"..tdata.name.."'!")
+	minetest.chat_send_player(player, ("You have successfully joined the town '%s'!"):format(tdata.name))
 	tdata.members[player] = {}
+	towny:mark_dirty(town,false)
 	return true
 end
 
@@ -114,8 +120,7 @@ local function town_command (name, param)
 	if (pr1 == "create" or pr1 == "new") and pr2 then
 		return towny:create_town(nil, name, pr2)
 	elseif (pr1 == "invite" and not minetest.get_player_by_name(pr2)) then
-		local tyes = pr2:lower()
-		return invite_respond(name, (tyes == "accept" or tyes == "yes" or tyes == "y"))
+		return invite_respond(name, (tyes:lower() == "accept" or minetest.is_yes(tyes)))
 	elseif pr1 == "join" and towny:get_town_by_name(pr2) and not town then
 		return join_town(pr2,name,false)
 	elseif pr1 == "show" or pr1 == "info" then

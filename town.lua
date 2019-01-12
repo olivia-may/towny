@@ -1,8 +1,15 @@
 local tr = towny.regions.size
+local th = towny.regions.height
 
 local function err_msg(player, msg)
 	minetest.chat_send_player(player, minetest.colorize("#ff1111", msg))
 	return false
+end
+
+local function count(T)
+	local count = 0
+	for _ in pairs(T) do count = count + 1 end
+	return count
 end
 
 function towny:get_player_town(name)
@@ -56,14 +63,14 @@ function towny:create_town(pos, player, name)
 	-- TODO: Economy
 
 	-- New town information
-	local p1 = vector.add(pos, {x=tr / 2,y=tr - 1,z=tr / 2})
+	local p1 = vector.add(pos, {x=tr / 2,y=th - 1,z=tr / 2})
 	local p2 = vector.subtract(pos, {x=tr / 2,y=1,z=tr / 2})
 	local id = minetest.sha1(minetest.hash_node_position(pos))
 	local data = {
 		name = name,
 		mayor = player,
 		members = {
-			[player] = {["town_build"] = true, ["plot_build"] = true}
+			[player] = {}
 		},
 		plots = {},
 		flags = {
@@ -85,7 +92,9 @@ function towny:create_town(pos, player, name)
 	towny:mark_dirty(id, true)
 
 	minetest.chat_send_player(player, "Your town has successfully been founded!")
-	minetest.chat_send_all(player .. " has started a new town called '" .. name .. "'!")
+	minetest.chat_send_all(("%s has started a new town called '%s'!"):format(player,name))
+
+	minetest.set_node(p1,{name="default:wood"})
 
 	towny.regions:visualize_area(p1,p2)
 
@@ -107,7 +116,7 @@ function towny:extend_town(pos,player)
 		return err_msg(player, "You do not have permission to spend claim blocks in your town.")
 	end
 
-	if data.flags["claim_blocks"] < 1 then
+	if towny:get_claims_available(town) < 1 then
 		return err_msg(player, "You do not have enough remaining claim blocks!")
 	end
 
@@ -125,11 +134,10 @@ function towny:extend_town(pos,player)
 	end
 
 	table.insert(towny.regions.memloaded[town].blocks, p1)
-	data.flags["claim_blocks"] = data.flags["claim_blocks"] - 1
-	minetest.chat_send_player(player, "Successfully claimed this block!")
+	minetest.chat_send_player(player, ("Successfully claimed this block! You have %d claim blocks left!"):format(towny:get_claims_available(town)))
 	towny:mark_dirty(town, true)
 
-	towny.regions:visualize_radius(vector.subtract(p1, {x=tr/2,y=tr/2,z=tr/2}))
+	towny.regions:visualize_radius(vector.subtract(p1, {x=tr/2,y=th/2,z=tr/2}))
 	return true
 end
 
@@ -159,8 +167,8 @@ function towny:abridge_town(pos,player)
 		return err_msg(player, "Failed to abandon claim block: " .. message)
 	end
 
-	data.flags["claim_blocks"] = data.flags["claim_blocks"] + 1
-	minetest.chat_send_player(player, "Successfully abandoned this claim block!")
+	minetest.chat_send_player(player, ("Successfully abandoned this claim block! You now have %d claim blocks available!")
+		:format(towny:get_claims_available(town)))
 	towny:mark_dirty(t, true)
 
 	return true
@@ -270,7 +278,7 @@ function towny:delete_town(pos,player)
 	towny.flatfile:delete_all_meta(t)
 
 	minetest.chat_send_player(player, "Successfully deleted the town!")
-	minetest.chat_send_all("The town '" .. name .. "' has fell into ruin.")
+	minetest.chat_send_all(("The town '%s' has fell into ruin."):format(name))
 	return true
 end
 
@@ -345,7 +353,7 @@ function towny:create_plot(pos,player)
 	towny:mark_dirty(t, true)
 
 	minetest.chat_send_player(player, "Successfully created a plot!")
-	towny.regions:visualize_radius(vector.subtract(c[1], {x=tr/2,y=tr/2,z=tr/2}))
+	towny.regions:visualize_radius(vector.subtract(c[1], {x=tr/2,y=th/2,z=tr/2}))
 	return true
 end
 
@@ -382,7 +390,7 @@ function towny:claim_plot(pos,player)
 			towny:mark_dirty(t, false)
 
 			minetest.chat_send_player(player, "Successfully claimed the plot!")
-			towny.regions:visualize_radius(vector.subtract(c[1], {x=tr/2,y=tr/2,z=tr/2}))
+			towny.regions:visualize_radius(vector.subtract(c[1], {x=tr/2,y=th/2,z=tr/2}))
 
 			return true
 		else
@@ -472,7 +480,7 @@ function towny:plot_member(pos,player,member,action)
 	end
 
 	if not tdata.members[member] then
-		return err_msg(player, "User '"..member.."' is not part of this town.")
+		return err_msg(player, ("User '%s' is not part of this town."):format(member))
 	end
 
 	-- Update plot members
@@ -483,11 +491,11 @@ function towny:plot_member(pos,player,member,action)
 	end
 
 	if member == pdata.owner then
-		return err_msg(player, "You cannot "..action_desc.." from this plot.")
+		return err_msg(player, ("You cannot %s from this plot."):format(action_desc))
 	end
 
 	if action == 0 then
-		action_desc = "removed "..member.." from"
+		action_desc = ("removed %s from"):format(member)
 		for mem,dat in pairs(pdata.members) do
 			if mem ~= member then
 				-- Transfer ownership to the first other member
@@ -495,14 +503,14 @@ function towny:plot_member(pos,player,member,action)
 			end
 		end
 	else
-		action_desc = "added "..member.." to"
+		action_desc = ("added %s to"):format(member)
 		members = pdata.members
 		members[member] = {}
 	end
 
 	pdata.members = members
 	towny:mark_dirty(t, false)
-	minetest.chat_send_player(player, "Successfully "..action_desc.." plot!")
+	minetest.chat_send_player(player, ("Successfully %s plot!"):format(action_desc))
 
 	return true
 end
@@ -555,7 +563,8 @@ function towny:set_plot_flags(pos,player,flag,value)
 		return err_msg(player, "You do not have permission to modify this plot.")
 	end
 
-	minetest.chat_send_player(player, "Successfully set the plot flag '" .. flag .."' to '" .. value .. "'!")
+	minetest.chat_send_player(player, ("Successfully set the plot flag '%s' to '%s'!")
+		:format(flag, value))
 	plot_data.flags[flag] = flag_typeify(value,pos)
 	towny:mark_dirty(t, false)
 end
@@ -593,7 +602,8 @@ function towny:set_plot_member_flags(pos,player,member,flag,value)
 
 	if flag == "build" then flag = "plot_build" end
 
-	minetest.chat_send_player(player, "Successfully set the plot member "..member.."'s flag '" .. flag .."' to '" .. value .. "'!")
+	minetest.chat_send_player(player, ("Successfully set the plot member %s's flag '%s' to '%s'!")
+		:format(member, flag, value))
 	plot_data.members[member][flag] = flag_typeify(value,pos)
 	towny:mark_dirty(t, false)
 end
@@ -624,12 +634,12 @@ function towny:set_town_flags(pos,player,flag,value)
 		return err_msg(player, "You cannot change this flag.")
 	end
 
-	minetest.chat_send_player(player, "Successfully set the town flag '" .. flag .."' to '" .. value .. "'!")
+	minetest.chat_send_player(player, ("Successfully set the town flag '%s' to '%s'!"):format(flag,value))
 	data.flags[flag] = flag_typeify(value,pos)
 	towny:mark_dirty(t, false)
 end
 
--- Get flags
+-- Getters
 
 function towny:get_flags(town,plot)
 	local tdata = towny.towns[town]
@@ -654,7 +664,47 @@ function towny:get_plot_flags(town,pos,player)
 	return towny:get_flags(t,p)
 end
 
-function towny:get_claims_total(town)
+-- Get used claim blocks
+function towny:get_claims_used(town)
 	if not towny.regions.memloaded[town] then return 0 end
 	return #towny.regions.memloaded[town].blocks
+end
+
+-- Get maximum available claim blocks, including bonuses
+function towny:get_claims_max(town)
+	local tdata = towny.towns[town]
+	if not tdata then return 0 end
+	if not tdata.level then towny:get_town_level(town, true) end
+	local bonus = 0
+	if tdata.flags['claim_blocks'] and tdata.flags['claim_blocks'] > 0 then
+		bonus = tdata.flags['claim_blocks']
+	end
+	return tdata.level.claimblocks + bonus, tdata.level.claimblocks, bonus
+end
+
+-- Get available claim blocks
+function towny:get_claims_available(town)
+	local used  = towny:get_claims_used(town)
+	local max   = towny:get_claims_max(town)
+	return max - used
+end
+
+function towny:get_member_count(town)
+	local tdata = towny.towns[town]
+	if not tdata then return nil end
+	return count(tdata.members)
+end
+
+function towny:get_town_level(town, update)
+	local tdata = towny.towns[town]
+	if not tdata then return nil end
+	if tdata.level and not update then return tdata.level end
+	local lvl
+	for _,describe in pairs(towny.levels) do
+		if count(tdata.members) >= describe.members then
+			lvl = describe
+		end
+	end
+	tdata.level = lvl
+	return lvl
 end
