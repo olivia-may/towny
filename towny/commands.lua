@@ -1,6 +1,4 @@
--- Commands and chat modification
-
--- TODO: Town names in chat
+-- Commands
 
 -- Privileges
 

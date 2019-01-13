@@ -23,11 +23,8 @@ towny_distance (Max town claims) int 80
 # Recommended to be kept as true, may cause issues with claims otherwise
 towny_prevent_protector (Prevent protectors from being placed in a town) bool true
 
-# Chat settings
-################
-
-# Set to false if you have any other mods that alter the way player-sent messages look
-towny_chat (Allow towny to modify the chat) bool true
+# Command settings
+###################
 
 # If true, players must be invited into towns (No direct joining)
 towny_invite (Invite-based membership) bool true
