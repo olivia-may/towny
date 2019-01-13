@@ -37,7 +37,7 @@ function towny.regions.build_perms(town, name, plotid)
 	local towndata = towny.towns[town]
 
 	-- Owner of the town can always build where they want in their town
-	if name == towndata.mayor then
+	if name == towndata.flags['mayor'] then
 		return true
 	end
 
@@ -74,7 +74,8 @@ function towny.regions.build_perms(town, name, plotid)
 	return false
 end
 
-local function single_range(p)
+-- Ensure double coordinates for a range
+function towny.regions.ensure_range(p)
 	local p1,p2
 	if p.x then
 		p1 = p
@@ -90,9 +91,9 @@ function towny.regions.get_town_at(pos)
 	local in_town, in_plot, in_claim
 	for town,regions in pairs(towny.regions.memloaded) do
 		if in_town ~= nil then break end
-		if vector.distance(pos, regions.origin) <= towny.regions.size * towny.regions.maxclaims then
+		if vector.distance(pos, regions.origin) <= towny.regions.size * 448 then
 			for _,tc in pairs(regions.blocks) do
-				local p1,p2 = single_range(tc)
+				local p1,p2 = towny.regions.ensure_range(tc)
 				if pos_in_region(pos,p1,p2) then
 					in_town = town
 					in_claim = {p1,p2}
@@ -117,9 +118,9 @@ function towny.regions.get_closest_town(pos,name)
 			count = towny.regions.build_perms(town, name, nil)
 		end
 
-		if count and vector.distance(pos, regions.origin) <= towny.regions.size * towny.regions.maxclaims then
+		if count and vector.distance(pos, regions.origin) <= towny.regions.size * 448 then
 			for _,tc in pairs(regions.blocks) do
-				local p1,p2 = single_range(tc)
+				local p1,p2 = towny.regions.ensure_range(tc)
 				local center = vector.subtract(p1, {x=tr/2,y=th/2,z=tr/2})
 				local dist = vector.distance(pos, center)
 				if dist < last_distance or last_distance == 0 then
@@ -208,7 +209,7 @@ end
 function towny.regions.visualize_town(town)
 	if not towny.regions.memloaded[town] then return end
 	for _,pos in pairs(towny.regions.memloaded[town].blocks) do
-		local p1,p2 = single_range(pos)
+		local p1,p2 = towny.regions.ensure_range(pos)
 		towny.regions.visualize_area(p1,p2)
 	end
 end

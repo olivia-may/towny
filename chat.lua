@@ -18,11 +18,10 @@ minetest.register_privilege("towny_admin", {
 -- Send message to all town members who are online
 function towny.chat.announce_to_members(town,message)
 	local tdata = towny.towns[town]
-	if tdata then
-		for member in pairs(tdata.members) do
-			if minetest.get_player_by_name(member) then
-				minetest.chat_send_player(member,message)
-			end
+	if tdata then return end
+	for member in pairs(tdata.members) do
+		if minetest.get_player_by_name(member) then
+			minetest.chat_send_player(member,message)
 		end
 	end
 end
@@ -50,8 +49,7 @@ local function invite_player(town,player,target)
 
 	local tdata = towny.towns[town]
 
-	minetest.chat_send_player(target, ("You have been invited to join town '%s' by %s")
-		:format(tdata.name, player))
+	minetest.chat_send_player(target, ("You have been invited to join town '%s' by %s"):format(tdata.name, player))
 	minetest.chat_send_player(target, "You can accept this invite by typing '/town invite accept' or deny '/town invite deny'")
 
 	towny.chat.invites[town.."-"..target] = { rejected = false, town = town, player = target, invited = player }
@@ -62,7 +60,7 @@ local function join_town(town,player,from_invite)
 	local tdata = towny.towns[town]
 	if not tdata then return false, "No such town" end
 	if (not from_invite and not tdata.flags['joinable']) then return false, "You cannot join this town." end
-	towny.chat.announce_to_members(town, minetest.colorize("#02aacc", player.." has joined the town!"))
+	towny.chat.announce_to_members(town, minetest.colorize("#02aacc", ("%s has joined the town!"):format(player)))
 	minetest.chat_send_player(player, ("You have successfully joined the town '%s'!"):format(tdata.name))
 	tdata.members[player] = {}
 	towny.mark_dirty(town,false)
@@ -92,7 +90,7 @@ local function invite_respond(player,response)
 	return false, "You do not have any pending invites."
 end
 
-local function send_flags (player,flags,message)
+local function send_flags (flags,message)
 	local shiny = {}
 	for flag,value in pairs(flags) do
 		if type(value) == "table" then
@@ -113,7 +111,9 @@ local function send_flags (player,flags,message)
 end
 
 local function town_command (name, param)
-	if not minetest.get_player_by_name(name) then return false, "Can't run command on behalf of offline player." end
+	local player = minetest.get_player_by_name(name)
+	if not player then return false, "Can't run command on behalf of offline player." end
+
 	local pr1, pr2 = string.match(param, "^([%a%d_-]+) (.+)$")
 	local town = towny.get_player_town(name)
 
@@ -127,11 +127,10 @@ local function town_command (name, param)
 	elseif pr1 == "join" and towny.get_town_by_name(pr2) and not town then
 		return join_town(pr2,name,false)
 	elseif pr1 == "show" or pr1 == "info" then
-		if towny.get_town_by_name(pr2) then
-			town_info = pr2
-		else
+		if not towny.get_town_by_name(pr2) then
 			return false, "No such town."
 		end
+		town_info = pr2
 	elseif param == "" and town then
 		town_info = town
 	end
@@ -152,6 +151,11 @@ local function town_command (name, param)
 		return towny.extend_town(nil, name)
 	elseif param == "leave" then
 		return towny.leave_town(name)
+	elseif param == "teleport" then
+		local portal = tdata.flags['teleport']
+		if not portal then portal = tdata.flags['origin'] end
+		player:set_pos(portal)
+		return true, "Teleporting you to town.."
 	elseif param == "unclaim" then
 		return towny.abridge_town(nil, name)
 	elseif param == "visualize" then
@@ -160,7 +164,7 @@ local function town_command (name, param)
 	elseif param == "flags" then
 		local flags = towny.get_flags(town)
 		if flags then
-			return send_flags(player,flags,"Flags of your town")
+			return send_flags(flags,"Flags of your town")
 		end
 	elseif (param == "delete" or param == "abandon") or (pr1 == "delete" or pr1 == "abandon") then
 		if towny.chat['delete_verify_' .. name] and pr2 == "I WANT TO DELETE MY TOWN" then
@@ -206,7 +210,7 @@ local function town_command (name, param)
 		elseif pr2 == "flags" then
 			local flags = towny.get_plot_flags(town,nil,name)
 			if flags then
-				return send_flags(player,flags,"Flags of this plot")
+				return send_flags(flags,"Flags of this plot")
 			else
 				return false, "There's no plot here."
 			end

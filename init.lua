@@ -11,19 +11,18 @@ towny = {
 	regions = {
 		size      = tonumber(minetest.settings:get('towny_claim_size')) or 16,
 		height    = tonumber(minetest.settings:get('towny_claim_height')) or 64,
-		maxclaims = tonumber(minetest.settings:get('towny_claim_max')) or 128,
 		distance  = tonumber(minetest.settings:get('towny_distance')) or 80,
 
 		-- Regions loaded into memory cache, see "Town regions data structure"
 		memloaded = {},
 	},
 	-- See "Town data structure"
-	storage  = {},
-	towns    = {},
-	chat     = {
-		chatmod      = (minetest.settings:get('towny_chat') == "true") or true,
-		questionaire = (minetest.settings:get('towny_questionaire') == "true") or true,
-		invites      = {},
+	storage = {},
+	towns   = {},
+	chat    = {
+		chatmod = minetest.settings:get_bool('towny_chat', true),
+		invite  = minetest.settings:get_bool('towny_invite', true),
+		invites = {},
 	},
 	levels = {
 		{
@@ -75,25 +74,26 @@ towny = {
 	},
 	flags = {
 		town = {
-			['town_build'] = 		{"boolean", "lets everyone build in unplotted town claims"},
-			['plot_build'] = 		{"boolean", "lets everyone build in unowned town plots"},
+			['town_build'] =        {"boolean", "lets everyone build in unplotted town claims"},
+			['plot_build'] =        {"boolean", "lets everyone build in unowned town plots"},
 			['plot_member_build'] = {"boolean", "if false, plot members don't have build rights to plots by default"},
-			['teleport'] = 			{"vector",  "town teleport point"},
-			['pvp'] = 				{"boolean", "players can fight in the town if true, ignores server pvp settings"},
-			['plot_pvp'] = 			{"boolean", "default plot pvp setting. defaults to false"},
-			['joinable'] = 			{"boolean", "if true, anyone can join this town. defaults to false"},
-			['greeting'] = 			{"string",  "town's greeting message"},
-			['tax'] = 				{"number",  "how much each member has to pay each day to stay in town"},
-			['bank'] = 				{"number",  "town's treasury", false},
-			['claim_blocks'] =		{"number",  "town's bonus claim blocks", false},
-			['origin'] =			{"vector",  "town's center position, set at town creation", false},
+			['teleport'] =          {"vector",  "town teleport point"},
+			['pvp'] =               {"boolean", "players can fight in the town if true, ignores server pvp settings"},
+			['plot_pvp'] =          {"boolean", "default plot pvp setting. defaults to false"},
+			['joinable'] =          {"boolean", "if true, anyone can join this town. defaults to false"},
+			['greeting'] =          {"string",  "town's greeting message"},
+			['tax'] =               {"number",  "how much each member has to pay each day to stay in town"},
+			['mayor'] = 			{"member",  "town's mayor"},
+			['bank'] =              {"number",  "town's treasury", false},
+			['claim_blocks'] =      {"number",  "town's bonus claim blocks", false},
+			['origin'] =            {"vector",  "town's center position, set at town creation", false},
 		},
 		town_member = {
-			['town_build'] = 	{"boolean", "member can build in unplotted town claims"},
-			['claim_create'] = 	{"boolean", "member can claim land for the town"},
-			['claim_delete'] = 	{"boolean", "member can abandon claim blocks"},
-			['plot_create'] = 	{"boolean", "member can create plots"},
-			['plot_delete'] = 	{"boolean", "member can delete plots"},
+			['town_build'] =   {"boolean", "member can build in unplotted town claims"},
+			['claim_create'] = {"boolean", "member can claim land for the town"},
+			['claim_delete'] = {"boolean", "member can abandon claim blocks"},
+			['plot_create'] =  {"boolean", "member can create plots"},
+			['plot_delete'] =  {"boolean", "member can delete plots"},
 		},
 		plot = {
 			['teleport'] = 	{"vector",   "plot's teleport point"},
@@ -112,11 +112,10 @@ towny = {
 	dirty = false,
 }
 
--- Town data structure
 --[[
+	-- Town data structure
 	town_id = {
 		name = "Town Name",
-		mayor = "Mayor name",
 		members = {<members with flags>},
 		flags = {<town specific flags>},
 		plots = {
@@ -127,16 +126,15 @@ towny = {
 			}
 		}
 	}
-]]
 
--- Town regions data structure
---[[
+	-- Town regions data structure
 	town_id = {
 		origin = <town origin>,
 		blocks = {
 			{
 				x, y, x,   -- Origin point for claim block
 				plot = nil -- Plot ID if this claim block is plotted
+				origin = true -- Center of town, if present
 			}
 		},
 	}

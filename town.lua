@@ -31,9 +31,8 @@ local function flag_typeify(value,pos)
 	return value
 end
 
-local function flag_validity(flag,scope,value,pos)
+local function flag_validity(flag,scope,value,pos,members)
 	value = flag_typeify(value,pos)
-	if value == nil then return true end
 	local spd = towny.flags[scope]
 	if type(spd[flag]) == "string" then
 		flag = spd[flag]
@@ -41,10 +40,15 @@ local function flag_validity(flag,scope,value,pos)
 
 	if not spd[flag] then return false end
 	if spd[flag][3] == false then return false end
+	local flgtype = spd[flag][1]
 
-	if spd[flag][1] == "vector" and (not value.x or not value.y or not value.z) then
+	if flgtype == "member" and (members and not members[tostring(value)]) then
 		return false
-	elseif spd[flag][1] ~= "vary" and type(value) ~= spd[flag][1] then
+	elseif flgtype == "member" and value == nil then
+		return false
+	elseif flgtype == "vector" and (value and (not value.x or not value.y or not value.z)) then
+		return false
+	elseif (flgtype == "string" or flgtype == "number") and type(value) ~= flgtype then
 		return false
 	end
 
@@ -53,7 +57,7 @@ end
 
 function towny.get_player_town(name)
 	for town,data in pairs(towny.towns) do
-		if data.mayor == name then
+		if data.flags['mayor'] == name then
 			return town
 		elseif data.members[name] then
 			return town
@@ -107,15 +111,15 @@ function towny.create_town(pos, player, name)
 	local id = minetest.sha1(minetest.hash_node_position(pos))
 	local data = {
 		name = name,
-		mayor = player,
 		members = {
 			[player] = {}
 		},
 		plots = {},
 		flags = {
+			mayor = player,
 			origin = pos,
 			claim_blocks = towny.claimbonus,
-			plot_member_build = true,
+			plot_member_build = true
 		}
 	}
 
@@ -149,7 +153,7 @@ function towny.extend_town(pos,player)
 	end
 
 	local data = towny.towns[town]
-	if data.mayor ~= player and data.members[player]['claim_create'] ~= true then
+	if data.flags['mayor'] ~= player and data.members[player]['claim_create'] ~= true then
 		return err_msg(player, "You do not have permission to spend claim blocks in your town.")
 	end
 
@@ -174,7 +178,8 @@ function towny.extend_town(pos,player)
 	minetest.chat_send_player(player, ("Successfully claimed this block! You have %d claim blocks left!"):format(towny.get_claims_available(town)))
 	towny.mark_dirty(town, true)
 
-	towny.regions.visualize_radius(vector.subtract(p1, {x=tr/2,y=th/2,z=tr/2}))
+	local p1,p2 = towny.regions.ensure_range(p1)
+	towny.regions.visualize_area(p1,p2)
 	return true
 end
 
@@ -190,7 +195,7 @@ function towny.abridge_town(pos,player)
 	end
 
 	local data = towny.towns[town]
-	if data.mayor ~= player and data.members[player]['claim_delete'] ~= true and not towny_admin then
+	if data.flags['mayor'] ~= player and data.members[player]['claim_delete'] ~= true and not towny_admin then
 		return err_msg(player, "You do not have permission to delete claim blocks in your town.")
 	end
 
@@ -218,7 +223,7 @@ function towny.leave_town(player,kick)
 	end
 
 	local data = towny.towns[town]
-	if data.mayor == player then
+	if data.flags['mayor'] == player then
 		return err_msg(player, "You cannot abandon a town that you own! Either delete the town or transfer mayorship.")
 	end
 
@@ -267,15 +272,15 @@ function towny.kick_member(town,player,member)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	local data = towny.towns[town]
 
-	if data.mayor ~= player and not towny_admin then
+	if data.flags['mayor'] ~= player and not towny_admin then
 		return err_msg(player, "You do not have permission to kick people from this town.")
 	end
 
 	if not data.members[member] then
-		return err_msg(player, "User "..member.." is not in this town.")
+		return err_msg(player, ("User %s is not in this town."):format(member))
 	end
 
-	if member == data.mayor then
+	if member == data.flags['mayor'] then
 		return err_msg(player, "You cannot kick the town mayor.")
 	end
 
@@ -303,7 +308,7 @@ function towny.delete_town(pos,player)
 	end
 
 	local data = towny.towns[t]
-	if data.mayor ~= player and not towny_admin then
+	if data.flags['mayor'] ~= player and not towny_admin then
 		return err_msg(player, "You do not have permission to delete this town.")
 	end
 
@@ -337,7 +342,7 @@ function towny.delete_plot(pos,player)
 
 	local data = towny.towns[t]
 	local plot_data = data.plots[p]
-	if (data.mayor ~= player and data.members[player]['plot_delete'] ~= true) and (plot_data.owner ~= player) and not towny_admin then
+	if (data.flags['mayor'] ~= player and data.members[player]['plot_delete'] ~= true) and (plot_data.owner ~= player) and not towny_admin then
 		return err_msg(player, "You do not have permission to delete this plot.")
 	end
 
@@ -370,7 +375,7 @@ function towny.create_plot(pos,player)
 	end
 
 	local data = towny.towns[t]
-	if data.mayor ~= player and data.members[player]['plot_create'] ~= true and not towny_admin then
+	if data.flags['mayor'] ~= player and data.members[player]['plot_create'] ~= true and not towny_admin then
 		return err_msg(player, "You do not have permission to create plots in this town.")
 	end
 
@@ -412,7 +417,7 @@ function towny.claim_plot(pos,player)
 	local tdata = towny.towns[t]
 	if p ~= nil then
 		local plot_data = tdata.plots[p]
-		if plot_data.flags['claimable'] or player == tdata.mayor then
+		if plot_data.flags['claimable'] or player == tdata.flags['mayor'] then
 			if plot_data.owner == player or plot_data.members[player] then
 				return err_msg(player, "You are already a member of this plot.")
 			end
@@ -512,7 +517,7 @@ function towny.plot_member(pos,player,member,action)
 	local tdata = towny.towns[t]
 	local pdata = tdata.plots[p]
 
-	if pdata.owner ~= player and player ~= tdata.mayor and not towny_admin then
+	if pdata.owner ~= player and player ~= tdata.flags['mayor'] and not towny_admin then
 		return err_msg(player, "You do not have permission to modify this plot.")
 	end
 
@@ -577,7 +582,7 @@ function towny.set_plot_flags(pos,player,flag,value)
 
 	local data = towny.towns[t]
 	local plot_data = data.plots[p]
-	if data.mayor ~= player and plot_data.owner ~= player and not towny_admin then
+	if data.flags['mayor'] ~= player and plot_data.owner ~= player and not towny_admin then
 		return err_msg(player, "You do not have permission to modify this plot.")
 	end
 
@@ -614,7 +619,7 @@ function towny.set_plot_member_flags(pos,player,member,flag,value)
 
 	local data = towny.towns[t]
 	local plot_data = data.plots[p]
-	if data.mayor ~= player and plot_data.owner ~= player and not towny_admin then
+	if data.flags['mayor'] ~= player and plot_data.owner ~= player and not towny_admin then
 		return err_msg(player, "You do not have permission to modify this plot.")
 	end
 
@@ -650,14 +655,20 @@ function towny.set_town_flags(pos,player,flag,value)
 		return err_msg(player, "You are not in any town you can modify.")
 	end
 
-	local data = towny.towns[t]
-	if data.mayor ~= player and not towny_admin then
+	local data  = towny.towns[t]
+	local mayor = data.flags['mayor']
+	if mayor ~= player and not towny_admin then
 		return err_msg(player, "You do not have permission to modify this town.")
 	end
 
-	local fs,flag,res = flag_validity(flag, 'town', value, pos)
+	local fs,flag,res = flag_validity(flag, 'town', value, pos, data.members)
 	if not fs then
 		return err_msg(player, "Invalid flag or invalid or unchangeable flag value.")
+	end
+
+	-- Announce mayor change to all
+	if flag == "mayor" and res ~= mayor then
+		towny.chat.announce_to_members(town, ("The town mayor rights have been given to %s!"):format(res))
 	end
 
 	minetest.chat_send_player(player, ("Successfully set the town flag '%s' to '%s'!"):format(flag,value))
@@ -683,7 +694,7 @@ function towny.set_town_member_flags(pos,player,member,flag,value)
 	end
 
 	local data = towny.towns[t]
-	if data.mayor ~= player and not towny_admin then
+	if data.flags['mayor'] ~= player and not towny_admin then
 		return err_msg(player, "You do not have permission to modify this town.")
 	end
 
@@ -747,8 +758,8 @@ end
 
 -- Get available claim blocks
 function towny.get_claims_available(town)
-	local used  = towny.get_claims_used(town)
-	local max   = towny.get_claims_max(town)
+	local used = towny.get_claims_used(town)
+	local max  = towny.get_claims_max(town)
 	return max - used
 end
 
