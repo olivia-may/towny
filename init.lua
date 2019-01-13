@@ -1,9 +1,14 @@
 -- A township system for Minetest servers.
 -- The MIT License - 2019  Evert "Diamond" Prants <evert@lunasqu.ee>
 
+-- TODO: Protection on HUD
+-- TODO: Nations
+-- TODO: Economy
+
 local modpath = minetest.get_modpath(minetest.get_current_modname())
 towny = {
-	regions    = {
+	modpath = modpath,
+	regions = {
 		size      = tonumber(minetest.settings:get('towny_claim_size')) or 16,
 		height    = tonumber(minetest.settings:get('towny_claim_height')) or 64,
 		maxclaims = tonumber(minetest.settings:get('towny_claim_max')) or 128,
@@ -13,7 +18,7 @@ towny = {
 		memloaded = {},
 	},
 	-- See "Town data structure"
-	flatfile = {},
+	storage  = {},
 	towns    = {},
 	chat     = {
 		chatmod      = (minetest.settings:get('towny_chat') == "true") or true,
@@ -137,7 +142,7 @@ towny = {
 	}
 ]]
 
-dofile(modpath.."/flatfile.lua")
+dofile(modpath.."/storage/init.lua")
 dofile(modpath.."/visualize.lua")
 dofile(modpath.."/regions.lua")
 dofile(modpath.."/town.lua")

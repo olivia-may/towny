@@ -15,7 +15,7 @@ local function region_equal(v1, v2)
 end
 
 -- Test to see if there's already a protected node in a region
-function towny.regions:already_protected(p1, p2, name)
+function towny.regions.already_protected(p1, p2, name)
 	local found = false
 	for x = p1.x, p2.x do
 		if found then break end
@@ -32,7 +32,7 @@ function towny.regions:already_protected(p1, p2, name)
 	return found
 end
 
-function towny.regions:build_perms(town, name, plotid)
+function towny.regions.build_perms(town, name, plotid)
 	if not towny.towns[town] then return true end -- Can build here, this town doesnt even exist
 	local towndata = towny.towns[town]
 
@@ -58,9 +58,9 @@ function towny.regions:build_perms(town, name, plotid)
 		if name == plot.owner then return true end
 		if plot.members[name] then
 			if towndata.flags['plot_member_build'] == false then
-				return plot.members[name]['plot_build'] == true
+				return plot.members[name]['plot_build']
 			else
-				return true
+				return plot.members[name]['plot_build'] ~= false
 			end
 		end
 	else
@@ -86,7 +86,7 @@ local function single_range(p)
 	return p1,p2
 end
 
-function towny.regions:get_town_at(pos)
+function towny.regions.get_town_at(pos)
 	local in_town, in_plot, in_claim
 	for town,regions in pairs(towny.regions.memloaded) do
 		if in_town ~= nil then break end
@@ -107,14 +107,14 @@ function towny.regions:get_town_at(pos)
 	return in_town,in_plot,in_claim
 end
 
-function towny.regions:get_closest_town(pos,name)
+function towny.regions.get_closest_town(pos,name)
 	local in_town,block
 	local last_distance = 0
 	for town,regions in pairs(towny.regions.memloaded) do
 		local count = true
 
 		if name then
-			count = towny.regions:build_perms(town, name, nil)
+			count = towny.regions.build_perms(town, name, nil)
 		end
 
 		if count and vector.distance(pos, regions.origin) <= towny.regions.size * towny.regions.maxclaims then
@@ -133,7 +133,7 @@ function towny.regions:get_closest_town(pos,name)
 	return in_town,block,last_distance
 end
 
-function towny.regions:town_claim_exists(town,p1)
+function towny.regions.town_claim_exists(town,p1)
 	if not towny.regions.memloaded[town] then return false end
 	local blocks = towny.regions.memloaded[town].blocks
 	for _,pos in pairs(blocks) do
@@ -142,8 +142,8 @@ function towny.regions:town_claim_exists(town,p1)
 	return false
 end
 
-function towny.regions:align_new_claim_block(pos,name)
-	local closest_town,closest_block,distance = towny.regions:get_closest_town(pos,name)
+function towny.regions.align_new_claim_block(pos,name)
+	local closest_town,closest_block,distance = towny.regions.get_closest_town(pos,name)
 	if not closest_town then return nil end
 	if distance > (tr + th) then return nil end -- Too far
 
@@ -177,7 +177,7 @@ function towny.regions:align_new_claim_block(pos,name)
 	return new_pos,closest_town
 end
 
-function towny.regions:remove_claim(p1,town)
+function towny.regions.remove_claim(p1,town)
 	local blocks = {}
 	if not towny.regions.memloaded[town] then return false, "This town does not exist anymore." end
 	for _,pos in pairs(towny.regions.memloaded[town].blocks) do
@@ -194,7 +194,7 @@ function towny.regions:remove_claim(p1,town)
 	return true
 end
 
-function towny.regions:set_plot(pos,town,plot)
+function towny.regions.set_plot(pos,town,plot)
 	if not towny.regions.memloaded[town] then return false, "This town does not exist anymore." end
 	for _,block in pairs(towny.regions.memloaded[town].blocks) do
 		if region_equal(block, pos) then
@@ -205,24 +205,24 @@ function towny.regions:set_plot(pos,town,plot)
 	return true
 end
 
-function towny.regions:visualize_town(town)
+function towny.regions.visualize_town(town)
 	if not towny.regions.memloaded[town] then return end
 	for _,pos in pairs(towny.regions.memloaded[town].blocks) do
-		towny.regions:visualize_radius(vector.subtract(pos,
-			{x=tr/2,y=th/2,z=tr/2}))
+		local p1,p2 = single_range(pos)
+		towny.regions.visualize_area(p1,p2)
 	end
 end
 
-function towny.regions:position_protected_from(pos, name)
-	local town,plot = towny.regions:get_town_at(pos)
+function towny.regions.position_protected_from(pos, name)
+	local town,plot = towny.regions.get_town_at(pos)
 	if not town then return false end
 
-	return not towny.regions:build_perms(town, name, plot)
+	return not towny.regions.build_perms(town, name, plot)
 end
 
 -- Finally, override is_protected
 function minetest.is_protected(pos, name)
-	local bt = towny.regions:position_protected_from(pos, name)
+	local bt = towny.regions.position_protected_from(pos, name)
 	if bt ~= false then
 		return true
 	end
@@ -232,7 +232,7 @@ end
 
 --[[if minetest.settings:get('towny_prevent_protector') == 'true' then
 	minetest.register_on_placenode(function (pos, newnode, placer, oldnode, itemstack, pointed_thing)
-		local town = towny.regions:get_town_at(pos)
+		local town = towny.regions.get_town_at(pos)
 		if not town return end
 	end)
 end]]

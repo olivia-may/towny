@@ -1,6 +1,7 @@
 -- Visualize an area
+-- TODO: Use particles
 
-local r1 = towny.regions.size + 1
+local r1 = towny.regions.size
 local r2 = towny.regions.height + 1
 local c_obj_props = {
 	hp 			= 1,
@@ -29,11 +30,11 @@ minetest.register_entity("towny:region_visual", {
 	end
 })
 
-function towny.regions:visualize_radius(pos)
+function towny.regions.visualize_radius(pos)
 	local e = minetest.add_entity(pos, "towny:region_visual")
 end
 
-function towny.regions:visualize_area(p1,p2)
+function towny.regions.visualize_area(p1,p2)
 	local center = {x=p2.x + r1/2,y=p2.y + r2/2,z=p2.z + r1/2}
 	local e = minetest.add_entity(center, "towny:region_visual")
 end

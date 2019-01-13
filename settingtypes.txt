@@ -1,4 +1,11 @@
 
+# General
+##########
+
+# Town metadata and region storage engine
+# Recommended to keep as modstorage.
+towny_storage_engine (Storage engine) enum modstorage modstorage,flatfile
+
 # Claims settings
 ##################
 

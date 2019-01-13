@@ -51,7 +51,7 @@ local function flag_validity(flag,scope,value,pos)
 	return true, flag, value
 end
 
-function towny:get_player_town(name)
+function towny.get_player_town(name)
 	for town,data in pairs(towny.towns) do
 		if data.mayor == name then
 			return town
@@ -62,7 +62,7 @@ function towny:get_player_town(name)
 	return nil
 end
 
-function towny:get_town_by_name(name)
+function towny.get_town_by_name(name)
 	if not name then return nil end
 	for town,data in pairs(towny.towns) do
 		if data.name:lower() == name:lower() then
@@ -72,7 +72,7 @@ function towny:get_town_by_name(name)
 	return nil
 end
 
-function towny:mark_dirty(town, areas)
+function towny.mark_dirty(town, areas)
 	towny.dirty = true
 	towny.towns[town].dirty = true
 	if areas and towny.regions.memloaded[town] then
@@ -80,22 +80,22 @@ function towny:mark_dirty(town, areas)
 	end
 end
 
-function towny:create_town(pos, player, name)
+function towny.create_town(pos, player, name)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	if towny:get_player_town(player) then
+	if towny.get_player_town(player) then
 		return err_msg(player, "You're already in a town! Please leave your current town before founding a new one!")
 	end
 
-	local _,__,distance = towny.regions:get_closest_town(pos)
+	local _,__,distance = towny.regions.get_closest_town(pos)
 	if distance > towny.regions.distance * towny.regions.size and not towny_admin then
 		return err_msg(player, "This location is too close to another town!")
 	end
 
-	if towny:get_town_by_name(name) and not towny_admin then
+	if towny.get_town_by_name(name) and not towny_admin then
 		return err_msg(player, "A town by this name already exists!")
 	end
 
@@ -128,24 +128,22 @@ function towny:create_town(pos, player, name)
 
 	towny.towns[id] = data
 	towny.regions.memloaded[id] = regions
-	towny:mark_dirty(id, true)
+	towny.mark_dirty(id, true)
 
 	minetest.chat_send_player(player, "Your town has successfully been founded!")
 	minetest.chat_send_all(("%s has started a new town called '%s'!"):format(player,name))
 
-	minetest.set_node(p1,{name="default:wood"})
-
-	towny.regions:visualize_area(p1,p2)
+	towny.regions.visualize_area(p1,p2)
 
 	return true
 end
 
-function towny:extend_town(pos,player)
+function towny.extend_town(pos,player)
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town then
 		return err_msg(player, "You're not currently in a town!")
 	end
@@ -155,16 +153,16 @@ function towny:extend_town(pos,player)
 		return err_msg(player, "You do not have permission to spend claim blocks in your town.")
 	end
 
-	if towny:get_claims_available(town) < 1 then
+	if towny.get_claims_available(town) < 1 then
 		return err_msg(player, "You do not have enough remaining claim blocks!")
 	end
 
-	local p1,closest_town = towny.regions:align_new_claim_block(pos, player)
+	local p1,closest_town = towny.regions.align_new_claim_block(pos, player)
 	if not p1 then
 		return err_msg(player, "You cannot claim this area! Town blocks must be aligned side-by-side.")
 	end
 
-	if towny.regions:town_claim_exists(town,p1) then
+	if towny.regions.town_claim_exists(town,p1) then
 		return err_msg(player, "This area is already claimed.")
 	end
 
@@ -173,20 +171,20 @@ function towny:extend_town(pos,player)
 	end
 
 	table.insert(towny.regions.memloaded[town].blocks, p1)
-	minetest.chat_send_player(player, ("Successfully claimed this block! You have %d claim blocks left!"):format(towny:get_claims_available(town)))
-	towny:mark_dirty(town, true)
+	minetest.chat_send_player(player, ("Successfully claimed this block! You have %d claim blocks left!"):format(towny.get_claims_available(town)))
+	towny.mark_dirty(town, true)
 
-	towny.regions:visualize_radius(vector.subtract(p1, {x=tr/2,y=th/2,z=tr/2}))
+	towny.regions.visualize_radius(vector.subtract(p1, {x=tr/2,y=th/2,z=tr/2}))
 	return true
 end
 
-function towny:abridge_town(pos,player)
+function towny.abridge_town(pos,player)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town and not towny_admin then
 		return err_msg(player, "You're not currently in a town!")
 	end
@@ -196,25 +194,25 @@ function towny:abridge_town(pos,player)
 		return err_msg(player, "You do not have permission to delete claim blocks in your town.")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town and not towny_admin) then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
 
-	local success,message = towny.regions:remove_claim(c[1],t)
+	local success,message = towny.regions.remove_claim(c[1],t)
 	if not success then
 		return err_msg(player, "Failed to abandon claim block: " .. message)
 	end
 
 	minetest.chat_send_player(player, ("Successfully abandoned this claim block! You now have %d claim blocks available!")
-		:format(towny:get_claims_available(town)))
-	towny:mark_dirty(t, true)
+		:format(towny.get_claims_available(town)))
+	towny.mark_dirty(t, true)
 
 	return true
 end
 
-function towny:leave_town(player,kick)
-	local town = towny:get_player_town(player)
+function towny.leave_town(player,kick)
+	local town = towny.get_player_town(player)
 	if not town then
 		return err_msg(player, "You're not currently in a town!")
 	end
@@ -260,12 +258,12 @@ function towny:leave_town(player,kick)
 		msg = "You were kicked form town."
 	end
 
-	towny:mark_dirty(town, false)
+	towny.mark_dirty(town, false)
 	minetest.chat_send_player(player, msg)
 	return true
 end
 
-function towny:kick_member(town,player,member)
+function towny.kick_member(town,player,member)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	local data = towny.towns[town]
 
@@ -285,21 +283,21 @@ function towny:kick_member(town,player,member)
 		return err_msg(player, "You cannot kick yourself from town.")
 	end
 
-	return towny:leave_town(member,true)
+	return towny.leave_town(member,true)
 end
 
-function towny:delete_town(pos,player)
+function towny.delete_town(pos,player)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town and not towny_admin then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town and not towny_admin) then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -314,25 +312,25 @@ function towny:delete_town(pos,player)
 	-- Wipe the town
 	towny.towns[t] = nil
 	towny.regions.memloaded[t] = nil
-	towny.flatfile:delete_all_meta(t)
+	towny.storage.delete_all_meta(t)
 
 	minetest.chat_send_player(player, "Successfully deleted the town!")
 	minetest.chat_send_all(("The town '%s' has fell into ruin."):format(name))
 	return true
 end
 
-function towny:delete_plot(pos,player)
+function towny.delete_plot(pos,player)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town and not towny_admin then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town or not towny_admin) then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -343,26 +341,26 @@ function towny:delete_plot(pos,player)
 		return err_msg(player, "You do not have permission to delete this plot.")
 	end
 
-	towny.regions:set_plot(c[1],t,nil)
+	towny.regions.set_plot(c[1],t,nil)
 	data.plots[p] = nil
-	towny:mark_dirty(t, true)
+	towny.mark_dirty(t, true)
 
 	minetest.chat_send_player(player, "Successfully removed the plot.")
 	return true
 end
 
-function towny:create_plot(pos,player)
+function towny.create_plot(pos,player)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town and not towny_admin then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town and not towny_admin) then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -378,7 +376,7 @@ function towny:create_plot(pos,player)
 
 	local pid = minetest.sha1(minetest.hash_node_position(c[1]))
 
-	local success,message = towny.regions:set_plot(c[1],t,pid)
+	local success,message = towny.regions.set_plot(c[1],t,pid)
 	if not success then
 		minetest.chat_send_player(player, "Failed to create a plot here: " .. message)
 		return false
@@ -389,24 +387,24 @@ function towny:create_plot(pos,player)
 		members = {[player] = {}},
 		flags = {},
 	}
-	towny:mark_dirty(t, true)
+	towny.mark_dirty(t, true)
 
 	minetest.chat_send_player(player, "Successfully created a plot!")
-	towny.regions:visualize_radius(vector.subtract(c[1], {x=tr/2,y=th/2,z=tr/2}))
+	towny.regions.visualize_area(c[1], c[2])
 	return true
 end
 
-function towny:claim_plot(pos,player)
+function towny.claim_plot(pos,player)
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or t ~= town then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -426,10 +424,10 @@ function towny:claim_plot(pos,player)
 				flags = {},
 			}
 
-			towny:mark_dirty(t, false)
+			towny.mark_dirty(t, false)
 
 			minetest.chat_send_player(player, "Successfully claimed the plot!")
-			towny.regions:visualize_radius(vector.subtract(c[1], {x=tr/2,y=th/2,z=tr/2}))
+			towny.regions.visualize_area(c[1], c[2])
 
 			return true
 		else
@@ -437,20 +435,20 @@ function towny:claim_plot(pos,player)
 		end
 	end
 
-	return towny:create_plot(pos,player)
+	return towny.create_plot(pos,player)
 end
 
-function towny:abandon_plot(pos,player)
+function towny.abandon_plot(pos,player)
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or t ~= town then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -485,24 +483,24 @@ function towny:abandon_plot(pos,player)
 		end
 	end
 	pdata.members = members
-	towny:mark_dirty(t, false)
+	towny.mark_dirty(t, false)
 	minetest.chat_send_player(player, "Successfully abandoned the plot!")
 
 	return true
 end
 
-function towny:plot_member(pos,player,member,action)
+function towny.plot_member(pos,player,member,action)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or t ~= town then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -548,7 +546,7 @@ function towny:plot_member(pos,player,member,action)
 	end
 
 	pdata.members = members
-	towny:mark_dirty(t, false)
+	towny.mark_dirty(t, false)
 	minetest.chat_send_player(player, ("Successfully %s plot!"):format(action_desc))
 
 	return true
@@ -556,19 +554,19 @@ end
 
 -- Set flags
 
-function towny:set_plot_flags(pos,player,flag,value)
+function towny.set_plot_flags(pos,player,flag,value)
 	if not flag then return false end
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town and not towny_admin then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town and not towny_admin) then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -590,22 +588,22 @@ function towny:set_plot_flags(pos,player,flag,value)
 
 	minetest.chat_send_player(player, ("Successfully set the plot flag '%s' to '%s'!"):format(flag, value))
 	plot_data.flags[flag] = res
-	towny:mark_dirty(t, false)
+	towny.mark_dirty(t, false)
 end
 
-function towny:set_plot_member_flags(pos,player,member,flag,value)
+function towny.set_plot_member_flags(pos,player,member,flag,value)
 	if not member or not flag then return false end
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town and not towny_admin then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town and not towny_admin) then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -632,22 +630,22 @@ function towny:set_plot_member_flags(pos,player,member,flag,value)
 	minetest.chat_send_player(player, ("Successfully set the plot member %s's flag '%s' to '%s'!")
 		:format(member, flag, value))
 	plot_data.members[member][flag] = res
-	towny:mark_dirty(t, false)
+	towny.mark_dirty(t, false)
 end
 
-function towny:set_town_flags(pos,player,flag,value)
+function towny.set_town_flags(pos,player,flag,value)
 	if not flag then return false end
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town and not towny_admin then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town and not towny_admin) then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -664,22 +662,22 @@ function towny:set_town_flags(pos,player,flag,value)
 
 	minetest.chat_send_player(player, ("Successfully set the town flag '%s' to '%s'!"):format(flag,value))
 	data.flags[flag] = res
-	towny:mark_dirty(t, false)
+	towny.mark_dirty(t, false)
 end
 
-function towny:set_town_member_flags(pos,player,member,flag,value)
+function towny.set_town_member_flags(pos,player,member,flag,value)
 	if not member or not flag then return false end
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local town = towny:get_player_town(player)
+	local town = towny.get_player_town(player)
 	if not town and not towny_admin then
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town and not towny_admin) then
 		return err_msg(player, "You are not in any town you can modify.")
 	end
@@ -701,12 +699,12 @@ function towny:set_town_member_flags(pos,player,member,flag,value)
 	minetest.chat_send_player(player, ("Successfully set the town member %s's flag '%s' to '%s'!")
 		:format(member, flag, value))
 	data.members[member][flag] = res
-	towny:mark_dirty(t, false)
+	towny.mark_dirty(t, false)
 end
 
 -- Getters
 
-function towny:get_flags(town,plot)
+function towny.get_flags(town,plot)
 	local tdata = towny.towns[town]
 	if not tdata then return nil end
 	if not plot then return tdata.flags end
@@ -714,32 +712,32 @@ function towny:get_flags(town,plot)
 	return tdata.plots[plot].flags
 end
 
-function towny:get_plot_flags(town,pos,player)
+function towny.get_plot_flags(town,pos,player)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos and player then
 		pos = minetest.get_player_by_name(player):get_pos()
 	end
 
-	local t,p,c = towny.regions:get_town_at(pos)
+	local t,p,c = towny.regions.get_town_at(pos)
 	if not t or (t ~= town and not towny_admin) then
 		return err_msg(player, "You are not in any town you can access.")
 	end
 
 	if not t or not p then return nil end
-	return towny:get_flags(t,p)
+	return towny.get_flags(t,p)
 end
 
 -- Get used claim blocks
-function towny:get_claims_used(town)
+function towny.get_claims_used(town)
 	if not towny.regions.memloaded[town] then return 0 end
 	return #towny.regions.memloaded[town].blocks
 end
 
 -- Get maximum available claim blocks, including bonuses
-function towny:get_claims_max(town)
+function towny.get_claims_max(town)
 	local tdata = towny.towns[town]
 	if not tdata then return 0 end
-	if not tdata.level then towny:get_town_level(town, true) end
+	if not tdata.level then towny.get_town_level(town, true) end
 	local bonus = 0
 	if tdata.flags['claim_blocks'] and tdata.flags['claim_blocks'] > 0 then
 		bonus = tdata.flags['claim_blocks']
@@ -748,26 +746,26 @@ function towny:get_claims_max(town)
 end
 
 -- Get available claim blocks
-function towny:get_claims_available(town)
-	local used  = towny:get_claims_used(town)
-	local max   = towny:get_claims_max(town)
+function towny.get_claims_available(town)
+	local used  = towny.get_claims_used(town)
+	local max   = towny.get_claims_max(town)
 	return max - used
 end
 
-function towny:get_member_count(town)
+function towny.get_member_count(town)
 	local tdata = towny.towns[town]
 	if not tdata then return nil end
 	return count(tdata.members)
 end
 
-function towny:get_full_name(town)
+function towny.get_full_name(town)
 	local tdata = towny.towns[town]
 	if not tdata then return nil end
 	if not tdata.level then return tdata.name end
 	return ("%s (%s)"):format(tdata.name, tdata.level.name_tag)
 end
 
-function towny:get_town_level(town, update)
+function towny.get_town_level(town, update)
 	local tdata = towny.towns[town]
 	if not tdata then return nil end
 	if tdata.level and not update then return tdata.level end
@@ -782,7 +780,7 @@ function towny:get_town_level(town, update)
 end
 
 minetest.register_on_joinplayer(function (player)
-	local town = towny:get_player_town(player:get_player_name())
+	local town = towny.get_player_town(player:get_player_name())
 	if not town then return end
 
 	local tdata = towny.towns[town]
@@ -790,6 +788,6 @@ minetest.register_on_joinplayer(function (player)
 	if not tdata.flags["greeting"] then return nil end
 
 	minetest.chat_send_player(player:get_player_name(),
-		minetest.colorize("#078e36", ("[%s] "):format(towny:get_full_name(town))) ..
+		minetest.colorize("#078e36", ("[%s] "):format(towny.get_full_name(town))) ..
 		minetest.colorize("#02aacc", tdata.flags["greeting"]))
 end)
