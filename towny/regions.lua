@@ -23,7 +23,7 @@ end
 function towny.regions.protection_mod(p1,p2)
 	if not protprev then return false end
 	if modareas then
-		if #areas:getAreasIntersectingArea(p1, p2) > 0 then
+		if #areas:getAreasIntersectingArea(table.copy(p1), table.copy(p2)) > 0 then
 			return true
 		end
 	end
