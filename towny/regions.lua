@@ -1,3 +1,6 @@
+local modareas = minetest.get_modpath("areas") ~= nil
+local protprev = minetest.settings:get_bool("towny_prevent_protector", true)
+
 local tr = towny.regions.size
 local th = towny.regions.height
 local main_is_protected = minetest.is_protected
@@ -12,6 +15,21 @@ local function region_equal(v1, v2)
 	return (math.floor(v1.x) == math.floor(v2.x)) and 
 		(math.floor(v1.y) == math.floor(v2.y)) and
 		(math.floor(v1.z) == math.floor(v2.z))
+end
+
+-- Find any conflicts with protection mods
+-- Do not allow placement of towns in any areas-protected regions, no matter if the user has
+-- build permission there or not.
+function towny.regions.protection_mod(p1,p2)
+	if not protprev then return false end
+	if modareas then
+		if #areas:getAreasIntersectingArea(p1, p2) > 0 then
+			return true
+		end
+	end
+
+	-- Clear of any other protections
+	return false
 end
 
 -- Test to see if there's already a protected node in a region
@@ -162,7 +180,7 @@ function towny.regions.align_new_claim_block(pos,name)
 	elseif (pos.x <= p1.x and pos.x >= p2.x) and (pos.z <= p1.z and pos.z >= p2.z) then
 		if pos.y > p1.y then
 			new_pos = vector.add(p1, {x=0,y=th,z=0})
-		else
+		elseif pos.y < p2.y then
 			new_pos = vector.add(p1, {x=0,y=-th,z=0})
 		end
 	-- Z
@@ -230,10 +248,3 @@ function minetest.is_protected(pos, name)
 
 	return main_is_protected(pos, name)
 end
-
---[[if minetest.settings:get('towny_prevent_protector') == 'true' then
-	minetest.register_on_placenode(function (pos, newnode, placer, oldnode, itemstack, pointed_thing)
-		local town = towny.regions.get_town_at(pos)
-		if not town return end
-	end)
-end]]

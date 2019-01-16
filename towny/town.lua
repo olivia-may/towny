@@ -108,6 +108,11 @@ function towny.create_town(pos, player, name)
 	-- New town information
 	local p1 = vector.add(pos, {x=tr / 2,y=th - 1,z=tr / 2})
 	local p2 = vector.subtract(pos, {x=tr / 2,y=1,z=tr / 2})
+
+	if towny.regions.protection_mod(p1,p2) then
+		return err_msg(player, "This area is protected by another protection mod! Please ensure that this is not the case.")
+	end
+
 	local id = minetest.sha1(minetest.hash_node_position(pos))
 	local data = {
 		name = name,
@@ -174,12 +179,17 @@ function towny.extend_town(pos,player)
 		return err_msg(player, "Something went wrong!")
 	end
 
+	local p1,p2 = towny.regions.ensure_range(p1)
+	if towny.regions.protection_mod(p1,p2) then
+		return err_msg(player, "This area is protected by another protection mod! Please ensure that this is not the case.")
+	end
+
 	table.insert(towny.regions.memloaded[town].blocks, p1)
 	minetest.chat_send_player(player, ("Successfully claimed this block! You have %d claim blocks left!"):format(towny.get_claims_available(town)))
 	towny.mark_dirty(town, true)
 
-	local p1,p2 = towny.regions.ensure_range(p1)
 	towny.regions.visualize_area(p1,p2)
+
 	return true
 end
 
