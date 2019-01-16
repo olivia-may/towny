@@ -4,7 +4,7 @@ towny.chat.invites.nation = {}
 -- Send message to all town members who are online
 function towny.nations.announce_to_members(nation,message)
 	local ndata = towny.nations.nations[nation]
-	if ndata then return end
+	if not ndata then return end
 	for town in pairs(ndata.members) do
 		towny.chat.announce_to_members(town,message)
 	end
@@ -19,7 +19,7 @@ local function join_nation(nation,player,from_invite)
 	if towny.nations.get_town_nation(town) then return false, "Your town is already part of a nation." end
 	if tdata.flags.mayor ~= player then return false, "Only the mayor can join their town into a nation." end
 	if (not from_invite and not ndata.flags['joinable']) then return false, "You cannot join this nation." end
-	towny.nations.announce_to_members(town, minetest.colorize("#02aacc", ("%s has joined the nation!"):format(towny.get_full_name(town))))
+	towny.nations.announce_to_members(nation, minetest.colorize("#02aacc", ("%s has joined the nation!"):format(towny.get_full_name(town))))
 	minetest.chat_send_player(player, ("Your town has successfully joined %s!"):format(towny.nations.get_full_name(nation)))
 	ndata.members[town] = {}
 	ndata.dirty = true
@@ -77,7 +77,7 @@ local function invite_town(player,town)
 		return false, "You can only invite towns to your nation if you own said nation!"
 	end
 
-	if not towny.get_town_by_name(town) then
+	if not town then
 		return false, "Invalid town name."
 	end
 
@@ -99,8 +99,8 @@ local function invite_town(player,town)
 	minetest.chat_send_player(target, ("Your town has been invited to join %s by %s"):format(towny.nations.get_full_name(nation), player))
 	minetest.chat_send_player(target, "You can accept this invite by typing '/nation invite accept' or deny '/nation invite deny'")
 
-	towny.chat.invites[town.."-"..nation] = { rejected = false, nation = nation, town = town, invited = player }
-	return true, ("Town %s has been invited to join your nation."):format(town)
+	towny.chat.invites.nation[town.."-"..nation] = { rejected = false, nation = nation, town = town, invited = player, player = target }
+	return true, ("%s has been invited to join your nation."):format(towny.get_full_name(town))
 end
 
 local function nation_command(name, param)
@@ -125,7 +125,7 @@ local function nation_command(name, param)
 	elseif (pr1 == "invite" and not towny.get_town_by_name(pr2)) then
 		return invite_respond(name, (pr2:lower() == "accept" or minetest.is_yes(pr2)))
 	elseif pr1 == "join" and towny.nations.get_nation_by_name(pr2) and not nation then
-		return join_nation(pr2,name,false)
+		return join_nation(towny.nations.get_nation_by_name(pr2),name,false)
 	elseif pr1 == "show" or pr1 == "info" then
 		if not towny.get_town_by_name(pr2) then
 			return false, "No such nation."
@@ -159,11 +159,13 @@ local function nation_command(name, param)
 		if flags then
 			return towny.chat.send_flags(flags,"Flags of your nation")
 		end
-	elseif pl1 == "set" and pl2 then
-		local flag, value = string.match(pl2, "^([%a%d_-]+) (.+)$")
+	elseif pr1 == "set" and pr2 then
+		local flag, value = string.match(pr2, "^([%a%d_-]+) (.+)$")
 		return towny.nations.set_nation_flags(name,flag,value)
 	elseif pr1 == "invite" and towny.get_town_by_name(pr2) then
 		return invite_town(name,towny.get_town_by_name(pr2))
+	elseif pr1 == "kick" and towny.get_town_by_name(pr2) then
+		return towny.nations.kick_town(towny.get_town_by_name(pr2),player)
 	end
 
 	return false, "Invalid command usage."

@@ -63,6 +63,8 @@ function towny.nations.create_nation(name,player)
 		name    = name,
 		members = {[town] = {}},
 		flags   = {capital = town},
+		allies  = {},
+		enemies = {},
 	}
 
 	mark_dirty(nid)
@@ -96,15 +98,16 @@ function towny.nations.leave_nation(player)
 
 	if ndata.flags['capital'] == town and count(ndata.members) <= 1 then
 		-- Single member town, delete nation
+		local name = towny.nations.get_full_name(nation)
 		towny.storage.delete_all_meta(nation)
 		towny.nations.nations[nation] = nil
 		minetest.chat_send_player(player, "Successfully deleted the nation!")
-		minetest.chat_send_all(("The nation '%s' has fallen."):format(ndata.name))
+		minetest.chat_send_all(("%s has fallen."):format(name))
 	else
 		-- Simply leave
 		minetest.chat_send_player(player, "Successfully left the nation!")
 		towny.nations.nations[nation].members[town] = nil
-		towny.nations.announce_to_members(nation, ("Town '%s' has left the nation."):format(tdata.name))
+		towny.nations.announce_to_members(nation, ("%s has left the nation."):format(towny.get_full_name(town)))
 		mark_dirty(nation)
 	end
 
@@ -119,15 +122,14 @@ function towny.nations.set_nation_flags(player,flag,value)
 		return err_msg(player, "You're not currently in a town!")
 	end
 
-	local nation = towny.nations.get_nation_by_name(name)
-	local ndata  = towny.nations.nations[name]
+	local nation = towny.nations.get_town_nation(town)
+	local ndata  = towny.nations.nations[nation]
 	local tdata  = towny.towns[town]
 	if not nation or not ndata then
 		return err_msg(player, "Your town is currently not part of any nation!")
 	end
 	
-	local ndata = towny.nations.nations[t]
-	if tdata.flags.capital ~= ndata.name or tdata.flags.mayor ~= player then
+	if ndata.flags.capital ~= town or tdata.flags.mayor ~= player then
 		return err_msg(player, "You do not have permission to modify this nation.")
 	end
 
@@ -149,6 +151,42 @@ function towny.nations.set_nation_flags(player,flag,value)
 	minetest.chat_send_player(player, ("Successfully set the nation flag '%s' to '%s'!"):format(flag,value))
 	ndata.flags[flag] = res
 	mark_dirty(nation)
+end
+
+function towny.nations.kick_town(town,player)
+	local mytown = towny.get_player_town(player)
+	if not mytown then
+		return err_msg(player, "You're not currently in a town!")
+	end
+
+	local nation = towny.nations.get_town_nation(mytown)
+	local ndata  = towny.nations.nations[nation]
+	local tdata  = towny.towns[mytown]
+	if not nation or not ndata then
+		return err_msg(player, "Your town is currently not part of any nation!")
+	end
+	
+	if ndata.flags.capital ~= mytown or tdata.flags.mayor ~= player then
+		return err_msg(player, "You do not have permission to modify this nation.")
+	end
+
+	if not ndata.members[town] then
+		return err_msg(player, "There is no such town in your nation.")
+	end
+
+	if town == ndata.flags['capital'] then
+		return err_msg(player, "You cannot kick your own town from your own nation.")
+	end
+
+	ndata.members[town] = nil
+
+	minetest.chat_send_player(player, "Successfully kicked the town from the nation!")
+	towny.nations.announce_to_members(nation, ("%s has been kicked from the nation."):format(towny.get_full_name(town)))
+	towny.chat.announce_to_members(town, "Your town was kicked from the nation.")
+
+	mark_dirty(nation)
+
+	return true
 end
 
 function towny.nations.get_nation_level(nation, update)
@@ -174,10 +212,10 @@ end
 
 function towny.nations.get_player_name(nation,player)
 	local ndata = towny.nations.nations[nation]
-	if not ndata then return player end
-	if not ndata.level then return player end
+	if not ndata then return nil end
+	if not ndata.level then return nil end
 	local cap = towny.towns[ndata.flags.capital]
-	if not cap or not cap.members[player] then return player end
+	if not cap or not cap.members[player] then return nil end
 	if cap.flags.mayor ~= player then return nil end
 	return ("%s %s"):format(ndata.level.king_tag, player)
 end

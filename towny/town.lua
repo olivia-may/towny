@@ -312,7 +312,21 @@ function towny.delete_town(pos,player)
 		return err_msg(player, "You do not have permission to delete this town.")
 	end
 
-	local name = data.name .. ""
+	local name = towny.get_full_name(town) .. ""
+
+	if towny.nations then
+		local nat = towny.nations.get_town_nation(town)
+		if nat then
+			local ndata = towny.nations.nations[nat]
+			if ndata.flags.capital == town then
+				return err_msg(player, "You must delete or transfer ownership of your nation first.")
+			else
+				-- Leave nation
+				ndata.members[town] = nil
+				ndata.dirty = true
+			end
+		end
+	end
 
 	-- Wipe the town
 	towny.towns[t] = nil
@@ -320,7 +334,7 @@ function towny.delete_town(pos,player)
 	towny.storage.delete_all_meta(t)
 
 	minetest.chat_send_player(player, "Successfully deleted the town!")
-	minetest.chat_send_all(("The town '%s' has fell into ruin."):format(name))
+	minetest.chat_send_all(("%s has fell into ruin."):format(name))
 	return true
 end
 

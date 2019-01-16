@@ -16,7 +16,7 @@ minetest.register_privilege("towny_admin", {
 -- Send message to all town members who are online
 function towny.chat.announce_to_members(town,message)
 	local tdata = towny.towns[town]
-	if tdata then return end
+	if not tdata then return end
 	for member in pairs(tdata.members) do
 		if minetest.get_player_by_name(member) then
 			minetest.chat_send_player(member,message)
