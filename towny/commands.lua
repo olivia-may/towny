@@ -28,8 +28,12 @@ end
 
 local function invite_player(town,player,target)
 	local utown = towny.get_player_town(player)
-	if not utown or utown ~= town then
+	if not utown then
 		return false, "You are not in a town."
+	end
+
+	if target == player then
+		return false, "You cannot invite yourself!"
 	end
 
 	if not minetest.get_player_by_name(target) then
@@ -67,7 +71,7 @@ end
 
 local function invite_respond(player,response)
 	local utown = towny.get_player_town(player)
-	if utown or utown ~= town then
+	if utown then
 		return false, "You are already in a town."
 	end
 
@@ -88,7 +92,7 @@ local function invite_respond(player,response)
 	return false, "You do not have any pending invites."
 end
 
-local function send_flags (flags,message)
+function towny.chat.send_flags (flags,message)
 	local shiny = {}
 	for flag,value in pairs(flags) do
 		if type(value) == "table" then
@@ -121,7 +125,7 @@ local function town_command (name, param)
 	if (pr1 == "create" or pr1 == "new") and pr2 then
 		return towny.create_town(nil, name, pr2)
 	elseif (pr1 == "invite" and not minetest.get_player_by_name(pr2)) then
-		return invite_respond(name, (tyes:lower() == "accept" or minetest.is_yes(tyes)))
+		return invite_respond(name, (pr2:lower() == "accept" or minetest.is_yes(pr2)))
 	elseif pr1 == "join" and towny.get_town_by_name(pr2) and not town then
 		return join_town(pr2,name,false)
 	elseif pr1 == "show" or pr1 == "info" then
@@ -162,7 +166,7 @@ local function town_command (name, param)
 	elseif param == "flags" then
 		local flags = towny.get_flags(town)
 		if flags then
-			return send_flags(flags,"Flags of your town")
+			return towny.chat.send_flags(flags,"Flags of your town")
 		end
 	elseif (param == "delete" or param == "abandon") or (pr1 == "delete" or pr1 == "abandon") then
 		if towny.chat['delete_verify_' .. name] and pr2 == "I WANT TO DELETE MY TOWN" then
@@ -208,7 +212,7 @@ local function town_command (name, param)
 		elseif pr2 == "flags" then
 			local flags = towny.get_plot_flags(town,nil,name)
 			if flags then
-				return send_flags(flags,"Flags of this plot")
+				return towny.chat.send_flags(flags,"Flags of this plot")
 			else
 				return false, "There's no plot here."
 			end

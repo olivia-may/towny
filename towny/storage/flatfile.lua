@@ -68,7 +68,17 @@ function towny.storage.save_town_meta(town)
 	end
 end
 
-local ldirs = { "meta", "region" }
+function towny.storage.save_nation_meta(nation)
+	local nmeta = towny.nations.nations[nation]
+	if nmeta and nmeta.dirty then
+		minetest.after(0.2, function ()
+			write_meta(town,"nation",nmeta)
+			nmeta.dirty = false
+		end)
+	end
+end
+
+local ldirs = { "meta", "region", "nation" }
 function towny.storage.load_all_towns()
 	local world   = minetest.get_worldpath()
 	local metadir = world.."/towny/"..ldirs[1]
@@ -99,6 +109,24 @@ function towny.storage.load_all_towns()
 				if not regiondata then return end
 				towny.regions.memloaded[town] = regiondata
 			end)
+		end
+	end
+
+	if towny.nations then
+		local nationdir = world.."/towny/"..ldirs[3]
+		minetest.mkdir(nationdir)
+
+		local nations = minetest.get_dir_list(nationdir, false)
+		for _,file in pairs(nations) do
+			if file:match("."..extension.."$") then
+				local nation = file:gsub("."..extension,"")
+				minetest.after(0.1, function ()
+					local nationdata = load_meta(nationdir.."/"..file)
+					if not nationdata then return end
+					towny.nations.nations[nation] = nationdata
+					towny.nations.get_nation_level(nation, true)
+				end)
+			end
 		end
 	end
 end

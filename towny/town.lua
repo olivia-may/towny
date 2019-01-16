@@ -31,7 +31,7 @@ local function flag_typeify(value,pos)
 	return value
 end
 
-local function flag_validity(flag,scope,value,pos,members)
+function towny.flag_validity(flag,scope,value,pos,members)
 	value = flag_typeify(value,pos)
 	local spd = towny.flags[scope]
 	if type(spd[flag]) == "string" then
@@ -586,7 +586,7 @@ function towny.set_plot_flags(pos,player,flag,value)
 		return err_msg(player, "You do not have permission to modify this plot.")
 	end
 
-	local fs,flag,res = flag_validity(flag, 'plot', value, pos)
+	local fs,flag,res = towny.flag_validity(flag, 'plot', value, pos)
 	if not fs then
 		return err_msg(player, "Invalid flag or flag value.")
 	end
@@ -627,7 +627,7 @@ function towny.set_plot_member_flags(pos,player,member,flag,value)
 		return err_msg(player, "There is no such member in this plot.")
 	end
 
-	local fs,flag,res = flag_validity(flag, 'plot_member', value, pos)
+	local fs,flag,res = towny.flag_validity(flag, 'plot_member', value, pos)
 	if not fs then
 		return err_msg(player, "Invalid flag or flag value.")
 	end
@@ -661,7 +661,7 @@ function towny.set_town_flags(pos,player,flag,value)
 		return err_msg(player, "You do not have permission to modify this town.")
 	end
 
-	local fs,flag,res = flag_validity(flag, 'town', value, pos, data.members)
+	local fs,flag,res = towny.flag_validity(flag, 'town', value, pos, data.members)
 	if not fs then
 		return err_msg(player, "Invalid flag or invalid or unchangeable flag value.")
 	end
@@ -702,7 +702,7 @@ function towny.set_town_member_flags(pos,player,member,flag,value)
 		return err_msg(player, "There is no such member in this town.")
 	end
 
-	local fs,flag,res = flag_validity(flag, 'town_member', value, pos)
+	local fs,flag,res = towny.flag_validity(flag, 'town_member', value, pos)
 	if not fs then
 		return err_msg(player, "Invalid flag or flag value.")
 	end
@@ -750,9 +750,19 @@ function towny.get_claims_max(town)
 	if not tdata then return 0 end
 	if not tdata.level then towny.get_town_level(town, true) end
 	local bonus = 0
+
 	if tdata.flags['claim_blocks'] and tdata.flags['claim_blocks'] > 0 then
 		bonus = tdata.flags['claim_blocks']
 	end
+
+	if towny.nations then
+		local n = towny.nations.get_town_nation(town)
+		local ndata = towny.nations.nations[n]
+		if n and ndata and ndata.level then
+			bonus = bonus + ndata.level.block_bonus
+		end
+	end
+
 	return tdata.level.claimblocks + bonus, tdata.level.claimblocks, bonus
 end
 
@@ -774,6 +784,23 @@ function towny.get_full_name(town)
 	if not tdata then return nil end
 	if not tdata.level then return tdata.name end
 	return ("%s (%s)"):format(tdata.name, tdata.level.name_tag)
+end
+
+function towny.get_player_name(player)
+	local town = towny.get_player_town(player)
+	local tdata = towny.towns[town]
+	if not tdata then return player end
+	if not tdata.level then return player end
+	if towny.nations and tdata.flags.mayor == player then
+		local n = towny.nations.get_town_nation(town)
+		if n then
+			local name = towny.nations.get_player_name(n,player)
+			if name then
+				return name
+			end
+		end
+	end
+	return ("%s %s"):format(tdata.level.mayor_tag, player)
 end
 
 function towny.get_town_level(town, update)

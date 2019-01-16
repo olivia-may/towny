@@ -22,6 +22,14 @@ local function carrier_tick()
 		end
 	end
 
+	if towny.nations then
+		for nation,data in pairs(towny.nations.nations) do
+			if data.dirty then
+				towny.storage.save_nation_meta(nation)
+			end
+		end
+	end
+
 	towny.dirty = false
 	saving = false
 end

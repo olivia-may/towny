@@ -4,11 +4,13 @@
 local storage = minetest.get_mod_storage()
 
 local function write_meta(town,scope,data)
+	local data = table.copy(data)
 	data.dirty = nil
 	data.level = nil
 
 	local serialized = minetest.serialize(data)
 	storage:set_string(town.."/"..scope, serialized)
+	data = nil
 end
 
 function towny.storage.save_town_meta(town)
@@ -22,6 +24,15 @@ function towny.storage.save_town_meta(town)
 	local rmeta = towny.regions.memloaded[town]
 	if rmeta and rmeta.dirty then
 		write_meta(town,"region",rmeta)
+		rmeta.dirty = false
+	end
+end
+
+function towny.storage.save_nation_meta(nation)
+	if not towny.nations then return end
+	local rmeta = towny.nations.nations[nation]
+	if rmeta and rmeta.dirty then
+		write_meta(nation,"nation",rmeta)
 		rmeta.dirty = false
 	end
 end
@@ -44,6 +55,9 @@ function towny.storage.load_all_towns()
 				towny.get_town_level(town, true)
 			elseif scope == "region" then
 				towny.regions.memloaded[town] = tbl
+			elseif scope == "nation" and towny.nations then
+				towny.nations.nations[town] = tbl
+				towny.nations.get_nation_level(town, true)
 			end
 		end
 	end
@@ -56,5 +70,9 @@ function towny.storage.delete_all_meta(town)
 
 	if storage:get_string(town.."/region") ~= "" then
 		storage:set_string(town.."/region", "")
+	end
+
+	if storage:get_string(town.."/nation") ~= "" then
+		storage:set_string(town.."/nation", "")
 	end
 end

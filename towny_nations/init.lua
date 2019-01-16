@@ -4,6 +4,7 @@
 local modpath = minetest.get_modpath(minetest.get_current_modname())
 towny.nations = {
 	modpath = modpath,
+	nations = {},
 	levels = {
 		{
 			king_tag = 'Leader',
@@ -44,3 +45,12 @@ towny.nations = {
 		}
 	},
 }
+
+towny.flags.nation = {
+	['tax'] =     {"number", "how much each town has to pay each day to stay in the nation"},
+	['capital'] = {"member", "nation's capital town"},
+	['bank'] =    {"number", "nation's treasury", false},
+}
+
+dofile(modpath.."/nation.lua")
+dofile(modpath.."/commands.lua")
