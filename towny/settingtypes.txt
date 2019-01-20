@@ -13,13 +13,17 @@ towny_storage_engine (Storage engine) enum modstorage modstorage,flatfile
 towny_claim_size (Claim size) int 16
 
 # Towny claim height
-towny_claim_size (Claim height) int 64
+towny_claim_height (Claim height) int 64
+
+# Use static height claim blocks
+towny_static_height (Use static height claims) bool false
+towny_static_miny (Static claim: minimum Y) int -32000
+towny_static_maxy (Static claim: maximum Y) int 32000
 
 # Minimum distance between towns (in claim blocks)
 towny_distance (Max town claims) int 80
 
-# Prevent protectors from being placed in a town
-# Towns provide their own protection
+# Prevent protectors from being placed in a town, as towns provide their own protection
 # Recommended to be kept as true, may cause issues with claims otherwise
 towny_prevent_protector (Prevent protectors from being placed in a town) bool true
 
@@ -38,4 +42,4 @@ towny_tax (Allow taxation) bool true
 # Units depend on economy mod used in server
 towny_create_cost (Town creation cost) int 10000
 towny_claim_cost (Town claim block cost) int 1000
-towny_upkeep_cost (Town daily upkeep cost, multiplied by member count) int 10
+towny_upkeep_cost (Town daily upkeep cost, multiplied by member count) int 0

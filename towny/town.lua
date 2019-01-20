@@ -95,7 +95,7 @@ function towny.create_town(pos, player, name)
 	end
 
 	local _,__,distance = towny.regions.get_closest_town(pos)
-	if distance > towny.regions.distance * towny.regions.size and not towny_admin then
+	if distance < towny.regions.distance * towny.regions.size and not towny_admin then
 		return err_msg(player, "This location is too close to another town!")
 	end
 
@@ -108,6 +108,11 @@ function towny.create_town(pos, player, name)
 	-- New town information
 	local p1 = vector.add(pos, {x=tr / 2,y=th - 1,z=tr / 2})
 	local p2 = vector.subtract(pos, {x=tr / 2,y=1,z=tr / 2})
+
+	if towny.regions.vertical.static then
+		p1.y = towny.regions.vertical.maxy
+		p2.y = towny.regions.vertical.miny
+	end
 
 	if towny.regions.protection_mod(p1,p2) then
 		return err_msg(player, "This area is protected by another protection mod! Please ensure that this is not the case.")
@@ -142,7 +147,7 @@ function towny.create_town(pos, player, name)
 	minetest.chat_send_player(player, "Your town has successfully been founded!")
 	minetest.chat_send_all(("%s has started a new town called '%s'!"):format(player,name))
 
-	towny.regions.visualize_area(p1,p2)
+	towny.regions.visualize_area(p1,p2,pos)
 
 	return true
 end
@@ -188,7 +193,7 @@ function towny.extend_town(pos,player)
 	minetest.chat_send_player(player, ("Successfully claimed this block! You have %d claim blocks left!"):format(towny.get_claims_available(town)))
 	towny.mark_dirty(town, true)
 
-	towny.regions.visualize_area(p1,p2)
+	towny.regions.visualize_area(p1,p2,pos)
 
 	return true
 end
@@ -419,7 +424,7 @@ function towny.create_plot(pos,player)
 	towny.mark_dirty(t, true)
 
 	minetest.chat_send_player(player, "Successfully created a plot!")
-	towny.regions.visualize_area(c[1], c[2])
+	towny.regions.visualize_area(c[1], c[2], pos)
 	return true
 end
 
@@ -456,7 +461,7 @@ function towny.claim_plot(pos,player)
 			towny.mark_dirty(t, false)
 
 			minetest.chat_send_player(player, "Successfully claimed the plot!")
-			towny.regions.visualize_area(c[1], c[2])
+			towny.regions.visualize_area(c[1], c[2], pos)
 
 			return true
 		else

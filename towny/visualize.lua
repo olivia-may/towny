@@ -34,7 +34,12 @@ local function fl(x)
 	return math.floor(x)
 end
 
-function towny.regions.visualize_area(p1,p2)
+function towny.regions.visualize_area(p1,p2,pos)
 	local center = {x=fl(p2.x + r1/2)+0.5,y=fl(p2.y + r2/2)+0.5,z=fl(p2.z + r1/2)+0.5}
+
+	if towny.regions.vertical.static then
+		center.y = pos.y
+	end
+
 	local e = minetest.add_entity(center, "towny:region_visual")
 end

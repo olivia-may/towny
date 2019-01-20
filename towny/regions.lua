@@ -102,6 +102,12 @@ function towny.regions.ensure_range(p)
 		p1 = p[1]
 		p2 = p[2]
 	end
+
+	if towny.regions.vertical.static then
+		p1.y = towny.regions.vertical.maxy
+		p2.y = towny.regions.vertical.miny
+	end
+
 	return p1,p2
 end
 
@@ -140,6 +146,11 @@ function towny.regions.get_closest_town(pos,name)
 			for _,tc in pairs(regions.blocks) do
 				local p1,p2 = towny.regions.ensure_range(tc)
 				local center = vector.subtract(p1, {x=tr/2,y=th/2,z=tr/2})
+
+				if towny.regions.vertical.static then
+					center.y = pos.y - th/2
+				end
+
 				local dist = vector.distance(pos, center)
 				if dist < last_distance or last_distance == 0 then
 					last_distance = dist
@@ -177,7 +188,7 @@ function towny.regions.align_new_claim_block(pos,name)
 			new_pos = vector.add(p1, {x=-tr,y=0,z=0})
 		end
 	-- Y
-	elseif (pos.x <= p1.x and pos.x >= p2.x) and (pos.z <= p1.z and pos.z >= p2.z) then
+	elseif (pos.x <= p1.x and pos.x >= p2.x) and (pos.z <= p1.z and pos.z >= p2.z) and not towny.regions.vertical.static then
 		if pos.y > p1.y then
 			new_pos = vector.add(p1, {x=0,y=th,z=0})
 		elseif pos.y < p2.y then
@@ -190,6 +201,10 @@ function towny.regions.align_new_claim_block(pos,name)
 		else
 			new_pos = vector.add(p1, {x=0,y=0,z=-tr})
 		end
+	end
+
+	if towny.regions.vertical.static and new_pos then
+		new_pos.y = towny.regions.vertical.maxy
 	end
 
 	if new_pos == nil then return nil end -- Impossible position
@@ -228,7 +243,7 @@ function towny.regions.visualize_town(town)
 	if not towny.regions.memloaded[town] then return end
 	for _,pos in pairs(towny.regions.memloaded[town].blocks) do
 		local p1,p2 = towny.regions.ensure_range(pos)
-		towny.regions.visualize_area(p1,p2)
+		towny.regions.visualize_area(p1,p2,towny.towns[town].flags['origin'])
 	end
 end
 
