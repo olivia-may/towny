@@ -126,8 +126,8 @@ local function town_command (name, param)
 		return towny.create_town(nil, name, pr2)
 	elseif (pr1 == "invite" and not minetest.get_player_by_name(pr2)) then
 		return invite_respond(name, (pr2:lower() == "accept" or minetest.is_yes(pr2)))
-	elseif pr1 == "join" and towny.get_town_by_name(pr2) and not town then
-		return join_town(pr2,name,false)
+	elseif pr1 == "join" and not town then
+		return join_town(towny.get_town_by_name(pr2), name, false)
 	elseif pr1 == "show" or pr1 == "info" then
 		if not towny.get_town_by_name(pr2) then
 			return false, "No such town."

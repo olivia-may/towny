@@ -94,8 +94,8 @@ function towny.create_town(pos, player, name)
 		return err_msg(player, "You're already in a town! Please leave your current town before founding a new one!")
 	end
 
-	local _,__,distance = towny.regions.get_closest_town(pos)
-	if distance < towny.regions.distance * towny.regions.size and not towny_admin then
+	local tn,__,distance = towny.regions.get_closest_town(pos)
+	if tn and distance < towny.regions.distance * towny.regions.size and not towny_admin then
 		return err_msg(player, "This location is too close to another town!")
 	end
 
