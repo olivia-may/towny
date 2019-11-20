@@ -11,6 +11,28 @@ minetest.register_privilege("towny_admin", {
 	give_to_singleplayer = false
 })
 
+-- Color short-hands
+
+local function fc(f,c)
+	return minetest.colorize(f,c)
+end
+
+local function b(c)
+	return fc("#04a5ea", c)
+end
+
+local function b1(c)
+	return fc("#35bbf4", c)
+end
+
+local function b2(c)
+	return fc("#5bc3ef", c)
+end
+
+local function g(c)
+	return fc("#1a9b25", c)
+end
+
 -- API
 
 -- Send message to all town members who are online
@@ -112,6 +134,122 @@ function towny.chat.send_flags (flags,message)
 	return true, message ..": "..table.concat( shiny, ", " )
 end
 
+local function print_town_info(town)
+	local info = towny.towns[town]
+	local str = ""
+	local tmp = g("[Town] ")
+	if not info then return "No such town." end
+
+	-- Gather information
+	local residents = {}
+	local mayor = towny.get_player_name(info.flags.mayor)
+	local greeting = info.flags.greeting
+	local claims = towny.get_claims_used(town)
+	local max = towny.get_claims_max(town)
+	local available = max - claims
+	local full_name = towny.get_full_name(town)
+	for p in pairs(info.members) do
+		table.insert(residents, p)
+	end
+
+	str = str .. tmp .. full_name .. "\n"
+	if info.flags.greeting then
+		str = str .. tmp .. greeting .. "\n"
+	end
+
+	str = str .. tmp .. "Mayor: " .. mayor .. "\n"
+	str = str .. tmp .. "Residents: " .. table.concat(residents, ", ") .. "\n"
+	str = str .. tmp .. string.format("Blocks: %d / %d (%d available)", claims, max, available)
+	--str = str .. tmp .. "Treasury: " .. (info.flags.bank or 0) .. "\n"
+
+	-- Nation information
+	if towny.nations then
+		local nation = towny.nations.get_town_nation(town)
+		if nation then
+			str = str .. "\n" .. tmp .. "Nation: " .. towny.nations.get_full_name(nation)
+		end
+	end
+
+	return str
+end
+
+function towny.chat.print_flag_info(pad, tbl)
+	local flags = {}
+	for i,v in pairs(tbl) do
+		if type(v) == "table" and v[3] ~= false then
+			table.insert(flags, pad .. i .. " (" .. v[1] ..") " .. v[2])
+		end
+	end
+	return flags
+end
+
+local function print_help(category)
+	if not category then
+		category = ""
+	end
+
+	local str = ""
+	local tmp = b(" /town")
+
+	if category == "" or category == "all" then
+		str = str .. g("Basic Towny commands") .. "\n"
+		str = str .. tmp .. " - Show information about your town" .. "\n"
+		str = str .. tmp .. b1(" help") .. " [<category>|all] - " .. "Help on commands" .. "\n"
+		str = str .. "   Help categories: members,claim,plot,flags" .. "\n"
+		str = str .. tmp .. b1(" new") .. " <town name> - " .. "Create a new town at your current position" .. "\n"
+		str = str .. tmp .. b1(" info") .. " <town name> - " .. "Show information about another town" .. "\n"
+		str = str .. tmp .. b1(" teleport") .. " - " .. "Teleport to the center of your town" .. "\n"
+		str = str .. tmp .. b1(" abandon") .. " - " .. "Abandon your town (deleting it)" .. "\n"
+	end
+
+	if category == "members" or category == "all" then
+		str = str .. g("Help for Towny member management") .. "\n"
+		str = str .. tmp .. b1(" invite") .. " <player> - " .. "Invite someone to your town" .. "\n"
+		str = str .. tmp .. b1(" kick") .. " <kick> - " .. "Kick someone from your town" .. "\n"
+		str = str .. tmp .. b1(" join") .. " <town name> - " .. "Join a town" .. "\n"
+		str = str .. tmp .. b1(" leave") .. " - " .. "Leave your current town" .. "\n"		
+	end
+
+	if category == "claim" or category == "all" then
+		str = str .. g("Help for Towny claims") .. "\n"
+		str = str .. tmp .. b1(" claim") .. " - " .. "Claim land for your town at your current position" .. "\n"
+		str = str .. tmp .. b1(" unclaim") .. " - " .. "Unclaim the currently stood in block" .. "\n"
+		str = str .. tmp .. b1(" visualize") .. " - " .. "Display your currently claimed blocks" .. "\n"
+	end
+
+	if category == "plot" or category == "all" then
+		str = str .. g("Help for Towny plots") .. "\n"
+		str = str .. tmp .. b1(" plot ") .. "- " .. "Manage plots" .. "\n"
+		str = str .. tmp .. b1(" plot ") .. b2("claim") .. " - " .. "Claim this plot" .. "\n"
+		str = str .. tmp .. b1(" plot ") .. b2("abandon") .. " - " .. "Abandon this plot" .. "\n"
+		str = str .. tmp .. b1(" plot ") .. b2("delete") .. " - " .. "Delete this plot" .. "\n"
+		str = str .. tmp .. b1(" plot ") .. b2("flags") .. " - " .. "Display plot flags" .. "\n"
+		str = str .. tmp .. b1(" plot ") .. b2("member") .. " add|remove|flags|set <member> [<flag> <value>] - " 
+			.. "Plot member management" .. "\n"
+	end
+
+	if category == "flags" or category == "all" then
+		str = str .. g("Help for Towny town flags") .. "\n"
+		str = str .. tmp .. b1(" flags") .. " - " .. "Display current town flags" .. "\n"
+		str = str .. tmp .. b1(" set") .. " <flag> <value> - " .. "Modify town flags" .. "\n"
+
+		str = str .. g("Available flags for towns:") .. "\n"
+		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.town), "\n") .. "\n"
+		str = str .. g("Available flags for town members:") .. "\n"
+		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.town_member), "\n") .. "\n"
+		str = str .. g("Available flags for town plots:") .. "\n"
+		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.plot), "\n") .. "\n"
+		str = str .. g("Available flags for town plot members:") .. "\n"
+		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.plot_member), "\n") .. "\n"
+		if towny.nations then
+			str = str .. g("Available flags for nations:") .. "\n"
+			str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.nation), "\n") .. "\n"
+		end
+	end
+
+	return str
+end
+
 local function town_command (name, param)
 	local player = minetest.get_player_by_name(name)
 	if not player then return false, "Can't run command on behalf of offline player." end
@@ -122,7 +260,9 @@ local function town_command (name, param)
 	-- Pre town requirement
 	local town_info = nil
 
-	if (pr1 == "create" or pr1 == "new") and pr2 then
+	if pr1 == "help" or param == "help" then
+		return true, print_help(pr2)
+	elseif (pr1 == "create" or pr1 == "new") and pr2 then
 		return towny.create_town(nil, name, pr2)
 	elseif (pr1 == "invite" and not minetest.get_player_by_name(pr2)) then
 		return invite_respond(name, (pr2:lower() == "accept" or minetest.is_yes(pr2)))
@@ -139,7 +279,7 @@ local function town_command (name, param)
 
 	-- Print town information
 	if town_info then
-		return false, "Not yet implemented!"
+		return true, print_town_info(town_info)
 	end
 
 	if not town then
@@ -193,7 +333,13 @@ local function town_command (name, param)
 	elseif pr1 == "member" then
 		local action, user = string.match(pr2, "^([%a%d_-]+) (.+)$")
 		if action == "kick" then
-			return towny.kick_member(town,name,pr2)
+			return towny.kick_member(town,name,user)
+		elseif action == "flags" then
+			local mem = tdata.members[user]
+			if not mem then
+				return false, "No such member of town."
+			end
+			return towny.chat.send_flags(mem,string.format("Flags of member \"%s\" in town \"%s\"", user, tdata.name))
 		elseif action == "set" then
 			local target, flag, value = string.match(user, "^([%a%d_-]+) ([%a%d_-]+) (.+)$")
 			return towny.set_town_member_flags(nil,name,target,flag,value)
@@ -201,7 +347,7 @@ local function town_command (name, param)
 	end
 
 	-- Plot management commands
-	if pr1 == "plot" then
+	if pr1 == "plot" or pr1 == "plots" then
 		local pl1, pl2 = string.match(pr2, "^([%a%d_-]+) (.+)$")
 		if pr2 == "claim" then
 			return towny.claim_plot(nil,name)
@@ -238,13 +384,19 @@ local function town_command (name, param)
 end
 
 minetest.register_chatcommand("town", {
-	description = "Manage your town",
+	description = "Manage your town. Run /town help for more information.",
+	privs = {towny = true},
+	func = town_command
+})
+
+minetest.register_chatcommand("towny", {
+	description = "Manage your town. Run /towny help for more information.",
 	privs = {towny = true},
 	func = town_command
 })
 
 minetest.register_chatcommand("plot", {
-	description = "Manage your town plot",
+	description = "Manage your town plot. Run /town help plot for more information.",
 	privs = {towny = true},
 	func = function (name, param)
 		return town_command(name, "plot " .. param)

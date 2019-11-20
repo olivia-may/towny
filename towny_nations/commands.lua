@@ -1,6 +1,28 @@
 
 towny.chat.invites.nation = {}
 
+-- Color short-hands
+
+local function fc(f,c)
+	return minetest.colorize(f,c)
+end
+
+local function b(c)
+	return fc("#04a5ea", c)
+end
+
+local function b1(c)
+	return fc("#35bbf4", c)
+end
+
+local function b2(c)
+	return fc("#5bc3ef", c)
+end
+
+local function g(c)
+	return fc("#1a9b25", c)
+end
+
 -- Send message to all town members who are online
 function towny.nations.announce_to_members(nation,message)
 	local ndata = towny.nations.nations[nation]
@@ -103,6 +125,74 @@ local function invite_town(player,town)
 	return true, ("%s has been invited to join your nation."):format(towny.get_full_name(town))
 end
 
+local function print_nation_info(nation)
+	local info = towny.nations.nations[nation]
+	local str = ""
+	local tmp = g("[Nation] ")
+	if not info then return "No such nation." end
+
+	local capital = info.flags.capital
+
+	-- Gather information
+	local members = {}
+	local capital_town = towny.towns[capital]
+	local leader = "Unknown"
+	if capital_town then
+		leader = towny.get_player_name(capital_town.flags.mayor)
+	end
+
+	local full_name = towny.nations.get_full_name(nation)
+	for p in pairs(info.members) do
+		table.insert(members, towny.towns[p].name)
+	end
+
+	str = str .. tmp .. full_name .. "\n"
+	str = str .. tmp .. "Leader: " .. leader .. "\n"
+	str = str .. tmp .. "Capital: " .. capital_town.name .. "\n"
+	str = str .. tmp .. "Member Towns: " .. table.concat(members, ", ") .. "\n"
+	--str = str .. tmp .. "Treasury: " .. (info.flags.bank or 0) .. "\n"
+
+	return str
+end
+
+local function print_help(category)
+	if not category then
+		category = ""
+	end
+
+	local str = ""
+	local tmp = b(" /nation")
+
+	if category == "" or category == "all" then
+		str = str .. g("Basic Nation commands") .. "\n"
+		str = str .. tmp .. " - Show information about your nation" .. "\n"
+		str = str .. tmp .. b1(" help") .. " [<category>|all] - " .. "Help on commands" .. "\n"
+		str = str .. "   Help categories: members,flags" .. "\n"
+		str = str .. tmp .. b1(" new") .. " <nation name> - " .. "Create a new nation with your current town as the capital" .. "\n"
+		str = str .. tmp .. b1(" info") .. " <nation name> - " .. "Show information about another nation" .. "\n"
+		str = str .. tmp .. b1(" teleport") .. " - " .. "Teleport to the capital of the nation" .. "\n"
+	end
+
+	if category == "members" or category == "all" then
+		str = str .. g("Help for Nation member management") .. "\n"
+		str = str .. tmp .. b1(" invite") .. " <town name> - " .. "Invite a town to your nation. Town mayor must be online." .. "\n"
+		str = str .. tmp .. b1(" kick") .. " <town name> - " .. "Kick a town from your nation" .. "\n"
+		str = str .. tmp .. b1(" join") .. " <nation name> - " .. "Join a nation with your town" .. "\n"
+		str = str .. tmp .. b1(" leave") .. " - " .. "Leave your current nation" .. "\n"		
+	end
+
+	if category == "flags" or category == "all" then
+		str = str .. g("Help for Towny nation flags") .. "\n"
+		str = str .. tmp .. b1(" flags") .. " - " .. "Display current nation flags" .. "\n"
+		str = str .. tmp .. b1(" set") .. " <flag> <value> - " .. "Modify nation flags" .. "\n"
+
+		str = str .. g("Available flags for nations:") .. "\n"
+		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.nation), "\n") .. "\n"
+	end
+
+	return str
+end
+
 local function nation_command(name, param)
 	local player = minetest.get_player_by_name(name)
 	if not player then return false, "Can't run command on behalf of offline player." end
@@ -120,7 +210,9 @@ local function nation_command(name, param)
 	-- Pre nation requirement
 	local nation_info = nil
 
-	if (pr1 == "create" or pr1 == "new") and pr2 then
+	if pr1 == "help" or param == "help" then
+		return true,print_help(pr2)
+	elseif (pr1 == "create" or pr1 == "new") and pr2 then
 		return towny.nations.create_nation(pr2,name)
 	elseif (pr1 == "invite" and not towny.get_town_by_name(pr2)) then
 		return invite_respond(name, (pr2:lower() == "accept" or minetest.is_yes(pr2)))
@@ -137,7 +229,7 @@ local function nation_command(name, param)
 
 	-- Print nation information
 	if nation_info then
-		return false, "Not yet implemented!"
+		return true, print_nation_info(nation_info)
 	end
 
 	if not nation then
@@ -147,7 +239,7 @@ local function nation_command(name, param)
 	local ndata = towny.nations.nations[nation]
 	local capital = towny.towns[ndata.flags.capital]
 
-	if param == "leave" or param == "delete" then
+	if param == "leave" or param == "delete" or param == "abandon" then
 		return towny.nations.leave_nation(name)
 	elseif param == "teleport" and capital then
 		local portal = capital.flags['teleport']
@@ -165,14 +257,14 @@ local function nation_command(name, param)
 	elseif pr1 == "invite" and towny.get_town_by_name(pr2) then
 		return invite_town(name,towny.get_town_by_name(pr2))
 	elseif pr1 == "kick" and towny.get_town_by_name(pr2) then
-		return towny.nations.kick_town(towny.get_town_by_name(pr2),player)
+		return towny.nations.kick_town(towny.get_town_by_name(pr2),name)
 	end
 
 	return false, "Invalid command usage."
 end
 
 minetest.register_chatcommand("nation", {
-	description = "Manage your nation",
+	description = "Manage your nation. Run /nation help for more information.",
 	privs = {towny = true},
 	func = nation_command
 })
