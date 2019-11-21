@@ -21,6 +21,7 @@ towny = {
 	},
 	-- See "Town data structure"
 	storage = {},
+	eco     = { enabled = false },
 	towns   = {},
 	chat    = {
 		chatmod = minetest.settings:get_bool('towny_chat', true),

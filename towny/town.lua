@@ -103,7 +103,10 @@ function towny.create_town(pos, player, name)
 		return err_msg(player, "A town by this name already exists!")
 	end
 
-	-- TODO: Economy
+	if towny.eco.enabled and towny.eco.get_player_balance(player) < towny.eco.create_cost then
+		return err_msg(player, string.format("You don't have enough %s to start a town! You need %s.",
+			towny.eco.get_currency(), towny.eco.format_number(towny.eco.create_cost)))
+	end
 
 	-- New town information
 	local p1 = vector.add(pos, {x=tr / 2,y=th - 1,z=tr / 2})
@@ -143,6 +146,11 @@ function towny.create_town(pos, player, name)
 	towny.towns[id] = data
 	towny.regions.memloaded[id] = regions
 	towny.mark_dirty(id, true)
+
+	-- Remove money
+	if towny.eco.enabled then
+		towny.eco.charge_player(player, towny.eco.create_cost)
+	end
 
 	minetest.chat_send_player(player, "Your town has successfully been founded!")
 	minetest.chat_send_all(("%s has started a new town called '%s'!"):format(player,name))
@@ -451,7 +459,12 @@ function towny.claim_plot(pos,player)
 				return err_msg(player, "You are already a member of this plot.")
 			end
 
-			-- TODO: enconomy
+			local cost = plot_data.flags["cost"] or 0
+			if cost > 0 and towny.eco.enabled and towny.eco.get_player_balance(player) < cost then
+				return err_msg(player, string.format("You don't have enough %s to claim this plot! You need %s.",
+					towny.eco.get_currency(), towny.eco.format_number(cost)))
+			end
+
 			tdata.plots[p] = {
 				owner = player,
 				members = {[player] = {}},
@@ -459,6 +472,11 @@ function towny.claim_plot(pos,player)
 			}
 
 			towny.mark_dirty(t, false)
+
+			-- Remove money
+			if towny.eco.enabled then
+				towny.eco.charge_player(player, cost)
+			end
 
 			minetest.chat_send_player(player, "Successfully claimed the plot!")
 			towny.regions.visualize_area(c[1], c[2], pos)
