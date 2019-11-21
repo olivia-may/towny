@@ -1,13 +1,11 @@
 
-# General
-##########
+[General]
 
 # Town metadata and region storage engine
 # Recommended to keep as modstorage.
 towny_storage_engine (Storage engine) enum modstorage modstorage,flatfile
 
-# Claims settings
-##################
+[Claims]
 
 # Towny claim diameter
 towny_claim_size (Claim size) int 16
@@ -27,19 +25,7 @@ towny_distance (Max town claims) int 80
 # Recommended to be kept as true, may cause issues with claims otherwise
 towny_prevent_protector (Prevent protectors from being placed in a town) bool true
 
-# Command settings
-###################
+[Command]
 
 # If true, players must be invited into towns (No direct joining)
 towny_invite (Invite-based membership) bool true
-
-# Economy settings
-###################
-
-towny_eco (Enable economy) bool false
-towny_tax (Allow taxation) bool true
-
-# Units depend on economy mod used in server
-towny_create_cost (Town creation cost) int 10000
-towny_claim_cost (Town claim block cost) int 1000
-towny_upkeep_cost (Town daily upkeep cost, multiplied by member count) int 0

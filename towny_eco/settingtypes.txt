@@ -1,0 +1,6 @@
+towny_tax (Allow taxation) bool true
+
+# Units depend on economy mod used in server
+towny_create_cost (Town creation cost) int 10000
+towny_claim_cost (Town claim block cost) int 1000
+towny_upkeep_cost (Town daily upkeep cost, multiplied by member count) int 0
