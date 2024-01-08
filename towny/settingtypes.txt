@@ -1,31 +1,12 @@
 
-[General]
-
+[Towny]
 # Town metadata and region storage engine
 # Recommended to keep as modstorage.
 towny_storage_engine (Storage engine) enum modstorage modstorage,flatfile
-
-[Claims]
-
-# Towny claim diameter
-towny_claim_size (Claim size) int 16
-
-# Towny claim height
-towny_claim_height (Claim height) int 64
-
-# Use static height claim blocks
-towny_static_height (Use static height claims) bool false
-towny_static_miny (Static claim: minimum Y) int -32000
-towny_static_maxy (Static claim: maximum Y) int 32000
-
-# Minimum distance between towns (in claim blocks)
-towny_distance (Max town claims) int 80
-
+# Minimum distance between town centers (in mapblocks)
+towny_distance (Min distance between town centers) int 4
 # Prevent protectors from being placed in a town, as towns provide their own protection
 # Recommended to be kept as true, may cause issues with claims otherwise
 towny_prevent_protector (Prevent protectors from being placed in a town) bool true
-
-[Command]
-
 # If true, players must be invited into towns (No direct joining)
 towny_invite (Invite-based membership) bool true

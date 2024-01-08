@@ -1,15 +1,14 @@
 -- Visualize an area
 -- TODO: Use particles
 
-local r1 = towny.regions.size
-local r2 = towny.regions.height
 local c_obj_props = {
 	hp 			= 1,
 	glow 		= 1,
 	physical 	= false,
 	pointable 	= true,
 	visual 		= "cube",
-	visual_size = {x = r1, y = r2},
+	-- 16 is mapblock size
+	visual_size = {x = 16, y = 16},
 	textures 	= {"towny_visualize.png","towny_visualize.png","towny_visualize.png",
 				   "towny_visualize.png","towny_visualize.png","towny_visualize.png"},
 	static_save = false,
@@ -30,16 +29,9 @@ minetest.register_entity("towny:region_visual", {
 	end
 })
 
-local function fl(x)
-	return math.floor(x)
-end
-
 function towny.regions.visualize_area(p1,p2,pos)
-	local center = {x=fl(p2.x + r1/2)+0.5,y=fl(p2.y + r2/2)+0.5,z=fl(p2.z + r1/2)+0.5}
-
-	if towny.regions.vertical.static then
-		center.y = pos.y
-	end
+	-- 8 is half mapblock size
+	local center = {x=p1.x - 8,y=p1.y - 8,z=p1.z - 8}
 
 	local e = minetest.add_entity(center, "towny:region_visual")
 end

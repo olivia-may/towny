@@ -1,6 +1,3 @@
-local tr = towny.regions.size
-local th = towny.regions.height
-
 local function err_msg(player, msg)
 	minetest.chat_send_player(player, minetest.colorize("#ff1111", msg))
 	return false
@@ -84,10 +81,21 @@ function towny.mark_dirty(town, areas)
 	end
 end
 
+-- use the players head, not their feet.
+-- TODO: use this function instead
+function towny.get_pos(player)
+	local pos = minetest.get_player_by_name(player):get_pos()
+        pos.y = pos.y + 2
+        return pos
+end
+
 function towny.create_town(pos, player, name)
+
+	-- 16 is mapblock size
+	
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
-		pos = minetest.get_player_by_name(player):get_pos()
+		pos = towny.get_pos(player)
 	end
 
 	if towny.get_player_town(player) then
@@ -95,7 +103,7 @@ function towny.create_town(pos, player, name)
 	end
 
 	local tn,__,distance = towny.regions.get_closest_town(pos)
-	if tn and distance < towny.regions.distance * towny.regions.size and not towny_admin then
+	if tn and distance < 16 * towny.regions.distance and not towny_admin then
 		return err_msg(player, "This location is too close to another town!")
 	end
 
@@ -109,13 +117,11 @@ function towny.create_town(pos, player, name)
 	end
 
 	-- New town information
-	local p1 = vector.add(pos, {x=tr / 2,y=th - 1,z=tr / 2})
-	local p2 = vector.subtract(pos, {x=tr / 2,y=1,z=tr / 2})
-
-	if towny.regions.vertical.static then
-		p1.y = towny.regions.vertical.maxy
-		p2.y = towny.regions.vertical.miny
-	end
+        -- (pos.y + 2), so it always favors the mapblock the player's head is in
+	local p1 = vector.new(math.ceil(pos.x / 16) * 16 - 0.5, math.ceil(pos.y / 16) * 16 - 0.5, math.ceil(pos.z / 16) * 16 - 0.5)
+	local p2 = vector.subtract(p1, {x = 16,y = 16,z = 16})
+        print(p1)
+        print(p2)
 
 	if towny.regions.protection_mod(p1,p2) then
 		return err_msg(player, "This area is protected by another protection mod! Please ensure that this is not the case.")

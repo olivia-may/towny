@@ -1,8 +1,6 @@
 local modareas = minetest.get_modpath("areas") ~= nil
 local protprev = minetest.settings:get_bool("towny_prevent_protector", true)
 
-local tr = towny.regions.size
-local th = towny.regions.height
 local main_is_protected = minetest.is_protected
 
 -- Test to see if a position is in a region
@@ -97,15 +95,11 @@ function towny.regions.ensure_range(p)
 	local p1,p2
 	if p.x then
 		p1 = p
-		p2 = vector.subtract(p, {x=tr,y=th,z=tr})
+                -- 16 is mapblock size
+		p2 = vector.subtract(p, {x=16,y=16,z=16})
 	elseif #p == 2 then
 		p1 = p[1]
 		p2 = p[2]
-	end
-
-	if towny.regions.vertical.static then
-		p1.y = towny.regions.vertical.maxy
-		p2.y = towny.regions.vertical.miny
 	end
 
 	return p1,p2
@@ -115,7 +109,8 @@ function towny.regions.get_town_at(pos)
 	local in_town, in_plot, in_claim
 	for town,regions in pairs(towny.regions.memloaded) do
 		if in_town ~= nil then break end
-		if vector.distance(pos, regions.origin) <= towny.regions.size * 448 then
+                -- 16 is mapblock size
+		if vector.distance(pos, regions.origin) <= 16 * 448 then
 			for _,tc in pairs(regions.blocks) do
 				local p1,p2 = towny.regions.ensure_range(tc)
 				if pos_in_region(pos,p1,p2) then
@@ -142,14 +137,11 @@ function towny.regions.get_closest_town(pos,name)
 			count = towny.regions.build_perms(town, name, nil)
 		end
 
-		if count and vector.distance(pos, regions.origin) <= towny.regions.size * 448 then
+                -- 16 is mapblock size
+		if count and vector.distance(pos, regions.origin) <= 16 * 448 then
 			for _,tc in pairs(regions.blocks) do
 				local p1,p2 = towny.regions.ensure_range(tc)
-				local center = vector.subtract(p1, {x=tr/2,y=th/2,z=tr/2})
-
-				if towny.regions.vertical.static then
-					center.y = pos.y - th/2
-				end
+				local center = vector.subtract(p1, {x=8,y=8,z=8})
 
 				local dist = vector.distance(pos, center)
 				if dist < last_distance or last_distance == 0 then
@@ -175,36 +167,33 @@ end
 function towny.regions.align_new_claim_block(pos,name)
 	local closest_town,closest_block,distance = towny.regions.get_closest_town(pos,name)
 	if not closest_town then return nil end
-	if distance > (tr + th) then return nil end -- Too far
+	if distance > (32) then return nil end -- Too far
 
 	local new_pos
 	local p1,p2 = closest_block[1],closest_block[2]
 
+	-- 16 is mapblock size
 	-- X
 	if (pos.z <= p1.z and pos.z >= p2.z) and (p1.y >= pos.y and p2.y <= pos.y) then
 		if pos.x > p1.x then
-			new_pos = vector.add(p1, {x=tr,y=0,z=0})
+			new_pos = vector.add(p1, {x=16,y=0,z=0})
 		else
-			new_pos = vector.add(p1, {x=-tr,y=0,z=0})
+			new_pos = vector.add(p1, {x=-16,y=0,z=0})
 		end
 	-- Y
-	elseif (pos.x <= p1.x and pos.x >= p2.x) and (pos.z <= p1.z and pos.z >= p2.z) and not towny.regions.vertical.static then
+	elseif (pos.x <= p1.x and pos.x >= p2.x) and (pos.z <= p1.z and pos.z >= p2.z) then
 		if pos.y > p1.y then
-			new_pos = vector.add(p1, {x=0,y=th,z=0})
+			new_pos = vector.add(p1, {x=0,y=16,z=0})
 		elseif pos.y < p2.y then
-			new_pos = vector.add(p1, {x=0,y=-th,z=0})
+			new_pos = vector.add(p1, {x=0,y=-16,z=0})
 		end
 	-- Z
 	elseif (pos.x <= p1.x and pos.x >= p2.x) and (p1.y >= pos.y and p2.y <= pos.y) then
 		if pos.z > p1.z then
-			new_pos = vector.add(p1, {x=0,y=0,z=tr})
+			new_pos = vector.add(p1, {x=0,y=0,z=16})
 		else
-			new_pos = vector.add(p1, {x=0,y=0,z=-tr})
+			new_pos = vector.add(p1, {x=0,y=0,z=-16})
 		end
-	end
-
-	if towny.regions.vertical.static and new_pos then
-		new_pos.y = towny.regions.vertical.maxy
 	end
 
 	if new_pos == nil then return nil end -- Impossible position

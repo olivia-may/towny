@@ -7,14 +7,8 @@ local modpath = minetest.get_modpath(minetest.get_current_modname())
 towny = {
 	modpath = modpath,
 	regions = {
-		size     = tonumber(minetest.settings:get('towny_claim_size')) or 16,
-		height   = tonumber(minetest.settings:get('towny_claim_height')) or 64,
-		distance = tonumber(minetest.settings:get('towny_distance')) or 80,
-		vertical = {
-			static = minetest.settings:get_bool('towny_static_height', false),
-			miny   = tonumber(minetest.settings:get('towny_static_miny')) or -32000,
-			maxy   = tonumber(minetest.settings:get('towny_static_maxy')) or 32000,
-		},
+                -- distance in mapblocks from town center (16x16x16 nodes)
+		distance = tonumber(minetest.settings:get('towny_distance')) or 4,
 
 		-- Regions loaded into memory cache, see "Town regions data structure"
 		memloaded = {},
