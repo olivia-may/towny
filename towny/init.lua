@@ -16,7 +16,9 @@ towny = {
 	-- See "Town data structure"
 	storage = {},
 	eco     = { enabled = false },
-	towns   = {},
+	towns   = {
+		vertical = minetest.settings:get_bool('towny_vertical_towns', false),
+	},
 	chat    = {
 		chatmod = minetest.settings:get_bool('towny_chat', true),
 		invite  = minetest.settings:get_bool('towny_invite', true),
