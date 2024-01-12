@@ -35,6 +35,7 @@ end
 
 -- API
 
+--[[
 -- Send message to all town members who are online
 function towny.chat.announce_to_members(town,message)
 	local tdata = towny.towns[town]
@@ -133,46 +134,25 @@ function towny.chat.send_flags (flags,message)
 
 	return true, message ..": "..table.concat( shiny, ", " )
 end
+]]--
+local function create_town_info_str(town)
 
-local function print_town_info(town)
-	local info = towny.towns[town]
 	local str = ""
-	local tmp = g("[Town] ")
-	if not info then return "No such town." end
+	local i
 
-	-- Gather information
-	local residents = {}
-	local mayor = towny.get_player_name(info.flags.mayor)
-	local greeting = info.flags.greeting
-	local claims = towny.get_claims_used(town)
-	local max = towny.get_claims_max(town)
-	local available = max - claims
-	local full_name = towny.get_full_name(town)
-	for p in pairs(info.members) do
-		table.insert(residents, p)
+	str = str .. town.name .. "\nMayor(s): ["
+	for i = 1, town.mayor_count do
+		str = str .. town.mayors[i] .. " "
 	end
-
-	str = str .. tmp .. full_name .. "\n"
-	if info.flags.greeting then
-		str = str .. tmp .. greeting .. "\n"
+	str = str .. "]\nLocation: " .. town.pos:to_string() .. "\nMembers: ["
+	for i = 1, town.member_count do
+		str = str .. town.members[i] .. " "
 	end
-
-	str = str .. tmp .. "Mayor: " .. mayor .. "\n"
-	str = str .. tmp .. "Residents: " .. table.concat(residents, ", ") .. "\n"
-	str = str .. tmp .. string.format("Blocks: %d / %d (%d available)", claims, max, available)
-	--str = str .. tmp .. "Treasury: " .. (info.flags.bank or 0) .. "\n"
-
-	-- Nation information
-	if towny.nations then
-		local nation = towny.nations.get_town_nation(town)
-		if nation then
-			str = str .. "\n" .. tmp .. "Nation: " .. towny.nations.get_full_name(nation)
-		end
-	end
+	str = str .. "]\nOwned blocks: " .. town.block_count
 
 	return str
 end
-
+--[[
 function towny.chat.print_flag_info(pad, tbl)
 	local flags = {}
 	for i,v in pairs(tbl) do
@@ -249,21 +229,88 @@ local function print_help(category)
 
 	return str
 end
+]]--
 
-local function town_command (name, param)
-	local player = minetest.get_player_by_name(name)
+-- get parameter count (paramc), and array of parameter strings (paramv)
+local function get_paramc_and_paramv(params)
+	local paramc = 0
+	local paramv = {}
+	local index
+	local i = 1
+
+	while true do
+		-- find index of ' ' space character, stop when no match
+		index = string.find(params, ' ', i, true)
+		paramc = paramc + 1
+		if index then
+			paramv[paramc] = string.sub(params, i, index - 1)
+			i = index + 1
+		else 
+			paramv[paramc] = string.sub(params, i)
+			break
+		end
+	end
+
+	return paramc, paramv
+end
+
+local function towny_command(player_name, params)
+end
+
+local function town_command (player_name, params)
+
+
+	local player = minetest.get_player_by_name(player_name)
 	if not player then return false, "Can't run command on behalf of offline player." end
+	
+	local paramc, paramv = get_paramc_and_paramv(params)
+	local resident = towny.get_resident_by_name(player_name)
 
-	local pr1, pr2 = string.match(param, "^([%a%d_-]+) (.+)$")
-	local town = towny.get_player_town(name)
+	if paramv[1]:len() == 0 then 
+		if resident.town then
+			return true, create_town_info_str(resident.town)
+		end
+			return false, "You are not currently in a town."
+	end
 
-	-- Pre town requirement
-	local town_info = nil
 
-	if pr1 == "help" or param == "help" then
-		return true, print_help(pr2)
-	elseif (pr1 == "create" or pr1 == "new") and pr2 then
-		return towny.create_town(nil, name, pr2)
+	if paramv[1] == "help" then
+		return true, "help" --print_help(pr2)
+	end
+
+	if paramv[1] == "visualize" then
+		if not resident.town then
+			return false, "You have no town to visualize."
+		end
+		towny.visualize_town(resident.town)
+		return true
+	end
+
+	if paramv[1] == "extend" or paramv[1] == "claim" then
+		if not resident.town then
+			return false, "You don't have a town!"
+		end
+
+		towny.extend_town(towny.get_pos(player_name), resident.town)
+		return true, "Successfully claimed block " .. resident.town.blocks[resident.town.block_count].blockpos:to_string() .. "."
+	end
+
+	if (paramc > 1) then
+		if (paramv[1] == "create" or paramv[1] == "new") then
+			
+			if resident.town then
+				return false, "You're already in a town!" 
+			end
+
+			local town = towny.town.new(player_name, paramv[2])
+
+			minetest.chat_send_all(("%s has started a new town called '%s'!"):format(player_name,
+				town.name))
+
+			return true, "Your town has successfully been founded!"
+		end
+	end
+	--[[
 	elseif (pr1 == "invite" and not minetest.get_player_by_name(pr2)) then
 		return invite_respond(name, (pr2:lower() == "accept" or minetest.is_yes(pr2)))
 	elseif pr1 == "join" and not town then
@@ -273,24 +320,10 @@ local function town_command (name, param)
 			return false, "No such town."
 		end
 		town_info = pr2
-	elseif param == "" and town then
-		town_info = town
-	end
-
-	-- Print town information
-	if town_info then
-		return true, print_town_info(town_info)
-	end
-
-	if not town then
-		return false, "You are not currently in a town."
-	end
 
 	-- Town management commands
 	local tdata = towny.towns[town]
 
-	if param == "extend" or param == "claim" then
-		return towny.extend_town(nil, name)
 	elseif param == "leave" then
 		return towny.leave_town(name)
 	elseif param == "teleport" then
@@ -300,9 +333,6 @@ local function town_command (name, param)
 		return true, "Teleporting you to town.."
 	elseif param == "unclaim" then
 		return towny.abridge_town(nil, name)
-	elseif param == "visualize" then
-		towny.regions.visualize_town(town)
-		return true
 	elseif param == "flags" then
 		local flags = towny.get_flags(town)
 		if flags then
@@ -379,8 +409,12 @@ local function town_command (name, param)
 	elseif pr1 == "invite" and minetest.get_player_by_name(pr2) then
 		return invite_player(town,name,pr2)
 	end
+	]]--
 
-	return false, "Invalid command usage."
+	return false, "towny: Invalid command usage."
+end
+
+local function plot_command()
 end
 
 minetest.register_chatcommand("town", {
@@ -390,15 +424,13 @@ minetest.register_chatcommand("town", {
 })
 
 minetest.register_chatcommand("towny", {
-	description = "Manage your town. Run /towny help for more information.",
+	description = "View and manage your towny settings Run /towny help for more information.",
 	privs = {towny = true},
-	func = town_command
+	func = towny_command
 })
 
 minetest.register_chatcommand("plot", {
 	description = "Manage your town plot. Run /town help plot for more information.",
 	privs = {towny = true},
-	func = function (name, param)
-		return town_command(name, "plot " .. param)
-	end
+	func = plot_command
 })

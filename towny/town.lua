@@ -1,3 +1,4 @@
+--[[
 local function err_msg(player, msg)
 	minetest.chat_send_player(player, minetest.colorize("#ff1111", msg))
 	return false
@@ -51,18 +52,17 @@ function towny.flag_validity(flag,scope,value,pos,members)
 
 	return true, flag, value
 end
-
-function towny.get_player_town(name)
-	for town,data in pairs(towny.towns) do
-		if data.flags['mayor'] == name then
-			return town
-		elseif data.members[name] then
-			return town
+]]--
+function towny.get_resident_by_name(player_name)
+	for i, resident in ipairs(towny.resident_array) do
+		if resident.name == player_name then
+			return resident
 		end
 	end
+
 	return nil
 end
-
+--[[
 function towny.get_town_by_name(name)
 	if not name then return nil end
 	for town,data in pairs(towny.towns) do
@@ -81,23 +81,23 @@ function towny.mark_dirty(town, areas)
 	end
 end
 
+--]]
 -- use the players head, not their feet.
 -- TODO: use this function instead
-function towny.get_pos(player)
-	local pos = minetest.get_player_by_name(player):get_pos()
+function towny.get_pos(player_name)
+	local pos = minetest.get_player_by_name(player_name):get_pos()
         pos.y = pos.y + 2
         return pos
 end
 
-function towny.create_town(pos, player, name)
-
-	-- 16 is mapblock size
+-- town class constructor
+function towny.town.new(player_name, town_name)
 	
-	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
-	if not pos then
-		pos = towny.get_pos(player)
-	end
+	local player_pos = towny.get_pos(player_name)
 
+	--[[
+	local is_towny_admin = minetest.check_player_privs(player_name, { towny_admin = true })
+	
 	if towny.get_player_town(player) then
 		return err_msg(player, "You're already in a town! Please leave your current town before founding a new one!")
 	end
@@ -115,62 +115,70 @@ function towny.create_town(pos, player, name)
 		return err_msg(player, string.format("You don't have enough %s to start a town! You need %s.",
 			towny.eco.get_currency(), towny.eco.format_number(towny.eco.create_cost)))
 	end
+	]]--
 
-	-- New town information
-        -- (pos.y + 2), so it always favors the mapblock the player's head is in
-	local p1 = vector.new(math.ceil(pos.x / 16) * 16 - 0.5, math.ceil(pos.y / 16) * 16 - 0.5, math.ceil(pos.z / 16) * 16 - 0.5)
-	local p2 = vector.subtract(p1, {x = 16,y = 16,z = 16})
-        print(p1)
-        print(p2)
+	-- 16 is mapblock size, round down player_pos to nearest multiple of 16 and
+	-- -0.5 to align to mapblock boundary
+        
+	local town = {}
+	setmetatable(town, towny.town)
+	towny.town.__index = towny.town
+	towny.town_count = towny.town_count + 1
+	town.id = towny.town_count
+	
+	local block = towny.block.new(player_pos, town)
+	block.is_town_center = true
+	
+	town.pos = player_pos
+	town.name = town_name
 
+	town.member_count = town.member_count + 1
+	town.members[town.member_count] = player_name
+	
+	town.mayor_count = town.mayor_count + 1
+	town.mayors[town.mayor_count] = player_name
+	
+	local res = towny.get_resident_by_name(player_name)
+	res.town = town
+	
+	towny.town_array[town.id] = town
+
+	--[[
 	if towny.regions.protection_mod(p1,p2) then
 		return err_msg(player, "This area is protected by another protection mod! Please ensure that this is not the case.")
 	end
+	]]--
 
-	local id = minetest.sha1(minetest.hash_node_position(pos))
-	local data = {
-		name = name,
-		members = {
-			[player] = {}
-		},
-		plots = {},
-		flags = {
-			mayor = player,
-			origin = pos,
-			claim_blocks = towny.claimbonus,
-			plot_member_build = true
-		}
-	}
 
-	local regions = {
-		origin = pos,
-		blocks = {
-			{ x=p1.x, y=p1.y, z=p1.z, origin = true }
-		}
-	}
-
-	towny.towns[id] = data
-	towny.regions.memloaded[id] = regions
-	towny.mark_dirty(id, true)
+	--towny.mark_dirty(id, true)
 
 	-- Remove money
-	if towny.eco.enabled then
-		towny.eco.charge_player(player, towny.eco.create_cost)
+	if towny.settings.eco_enabled then
+		--towny.eco.charge_player(player, towny.eco.create_cost)
 	end
-
-	minetest.chat_send_player(player, "Your town has successfully been founded!")
-	minetest.chat_send_all(("%s has started a new town called '%s'!"):format(player,name))
-
-	towny.regions.visualize_area(p1,p2,pos)
-
-	return true
+	
+	towny.visualize_block(block)
+	
+	return town
 end
 
-function towny.extend_town(pos,player)
-	if not pos then
-		pos = minetest.get_player_by_name(player):get_pos()
-	end
+function towny.visualize_block(block)
+	-- 8 is half mapblock size
+	minetest.add_entity(vector.add(block.pos_min, 8), "towny:region_visual")
+end
 
+function towny.visualize_town(town)
+	for i, block in ipairs(town.blocks) do
+		towny.visualize_block(block)
+	end
+end
+
+function towny.extend_town(player_pos, town)
+
+	local block = towny.block.new(player_pos, town)
+	
+	towny.visualize_block(block)
+	--[[
 	local town = towny.get_player_town(player)
 	if not town then
 		return err_msg(player, "You're not currently in a town!")
@@ -208,10 +216,10 @@ function towny.extend_town(pos,player)
 	towny.mark_dirty(town, true)
 
 	towny.regions.visualize_area(p1,p2,pos)
-
-	return true
+	]]--
 end
 
+--[[
 function towny.abridge_town(pos,player)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
@@ -882,3 +890,4 @@ minetest.register_on_joinplayer(function (player)
 		minetest.colorize("#078e36", ("[%s] "):format(towny.get_full_name(town))) ..
 		minetest.colorize("#02aacc", tdata.flags["greeting"]))
 end)
+]]--

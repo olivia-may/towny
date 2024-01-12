@@ -2,29 +2,109 @@
 -- The MIT License - 2019  Evert "Diamond" Prants <evert@lunasqu.ee>
 
 -- TODO: Economy
+-- TODO: Refactor towns, settings, and mapsblocks
+-- TODO: `resident` class
+-- TODO: storage
+-- TODO: merge towny_nations into towny 
+-- TODO: plots
 
-local modpath = minetest.get_modpath(minetest.get_current_modname())
+-- `towny` namespace
 towny = {
-	modpath = modpath,
-	regions = {
-                -- distance in mapblocks from town center (16x16x16 nodes)
-		distance = tonumber(minetest.settings:get('towny_distance')) or 4,
+	modpath = minetest.get_modpath(minetest.get_current_modname()),
+	
+	settings = {
+		storage_engine = minetest.settings:get("towny_storage_engine") or "modstorage",
+                -- min distance in mapblocks from town center (16x16x16 nodes)
+		town_distance = tonumber(minetest.settings:get('towny_distance')) or 4,
+		vertical_towns = 
+			minetest.settings:get_bool('towny_vertical_towns', false),
+		eco_enabled = false,
+	},
+	
+	-- (claimed by a town) mapblock class
+	block = {
+		id = 0,
+		name = nil, --string
+		town = nil, -- town, town that owns this block
+		plot = nil, -- Plot ID if this claim block is plotted
+		is_town_center = false,
+		blockpos = {}, -- vector, block position
+		pos_min = {}, -- vector, min pos
+		pos_max = {}, -- vector, max pos
+		perms = {
+			build = {
+				resident = false,
+				nation = false,
+				ally = false,
+				outsider = false,
+			},	
+			destroy = {
+				resident = false,
+				nation = false,
+				ally = false,
+				outsider = false,
+			},
+			switch = {
+				resident = false,
+				nation = false,
+				ally = false,
+				outsider = false,
+			},
+			itemuse = {
+				resident = false,
+				nation = false,
+				ally = false,
+				outsider = false,
+			},
+		},
+	},
+	
+	-- Town class
+	town = {
+		id = 0,
+		name = nil, -- string
+		members = {}, -- resident table
+		member_count = 0, 
+		mayors = {}, -- resident table
+		mayor_count = 0,
+		blocks = {},-- block table, owned mapblocks
+		block_count = 0,
+		flags = nil, -- TODO: remove this
+		pos = {} -- vector
+	},
 
-		-- Regions loaded into memory cache, see "Town regions data structure"
-		memloaded = {},
+	-- resident class
+	resident = {
+		id = 0,
+		nickname = nil, -- string
+		name = nil, -- string, minetest name ex. 'singleplayer'
+		town = nil, -- town, resident town
+		friends = {}, -- other residents
 	},
-	-- See "Town data structure"
+	
+	-- Mapblocks loaded into memory cache
+	block_array = {},
+	block_count = 0,
+	
+	town_array   = {},
+	town_count = 0,
+
+	resident_array = {},
+	resident_count = 0,
+	
+	-- not sure what this does?
 	storage = {},
-	eco     = { enabled = false },
-	towns   = {
-		vertical = minetest.settings:get_bool('towny_vertical_towns', false),
-	},
+	
+	-- economy
+	eco     = {},
+	
 	chat    = {
 		chatmod = minetest.settings:get_bool('towny_chat', true),
 		invite  = minetest.settings:get_bool('towny_invite', true),
 		invites = {},
 	},
-	levels = {
+	
+	town_levels = {
 		{
 			members = 0,
 			name_tag = 'Ruins',
@@ -72,6 +152,8 @@ towny = {
 			claimblocks = 448,
 		}
 	},
+
+	-- TODO: refactor or remove flags
 	flags = {
 		town = {
 			['town_build'] =        {"boolean", "lets everyone build in unplotted town claims"},
@@ -112,36 +194,52 @@ towny = {
 	dirty = false,
 }
 
---[[
-	-- Town data structure
-	town_id = {
-		name = "Town Name",
-		members = {<members with flags>},
-		flags = {<town specific flags>},
-		plots = {
-			plot_id = {
-				owner = "Owner name",
-				members = {<members with flags>},
-				flags = {<plot specific flags>}
-			}
-		}
-	}
+-- block class constructor
+function towny.block.new(pos, town)
+	local block = {}
+	setmetatable(block, towny.block)
+	towny.block.__index = towny.block
+	towny.block_count = towny.block_count + 1
+	block.id = towny.block_count
 
-	-- Town regions data structure
-	town_id = {
-		origin = <town origin>,
-		blocks = {
-			{
-				x, y, x,   -- Origin point for claim block
-				plot = nil -- Plot ID if this claim block is plotted
-				origin = true -- Center of town, if present
-			}
-		},
-	}
-]]
+	block.blockpos = vector.new(math.floor(pos.x / 16),
+		math.floor(pos.y / 16),
+		math.floor(pos.z / 16))
+	block.pos_min = vector.new(block.blockpos.x * 16 - 0.5,
+		block.blockpos.y * 16 - 0.5,
+		block.blockpos.z * 16 - 0.5)
+	block.pos_max = vector.add(block.pos_min, 16)
+	
+	block.town = town
+	towny.block_array[towny.block_count] = block
 
-dofile(modpath.."/storage/init.lua")
-dofile(modpath.."/visualize.lua")
-dofile(modpath.."/regions.lua")
-dofile(modpath.."/town.lua")
-dofile(modpath.."/commands.lua")
+	town.block_count = town.block_count + 1
+	town.blocks[town.block_count] = block
+
+	return block
+end
+
+-- resident class constructor
+function towny.resident.new(player)
+	local resident = {}
+
+	setmetatable(resident, towny.resident)
+	towny.resident.__index = towny.resident
+	towny.resident_count = towny.resident_count + 1
+	resident.id = towny.resident_count
+	resident.name = player:get_player_name()
+	resident.nickname = resident.name -- can be changed later
+	towny.resident_array[towny.resident_count] = resident
+	
+	return resident
+end
+
+minetest.register_on_joinplayer(function(player)
+	towny.resident.new(player)
+end)
+
+dofile(towny.modpath .. "/storage/init.lua")
+dofile(towny.modpath .. "/visualize.lua")
+--dofile(towny.modpath .. "/regions.lua")
+dofile(towny.modpath .. "/town.lua")
+dofile(towny.modpath .. "/commands.lua")

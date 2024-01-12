@@ -2,7 +2,7 @@
 -- TODO: Use particles
 
 local c_obj_props = {
-	hp 			= 1,
+	hp 		= 1,
 	glow 		= 1,
 	physical 	= false,
 	pointable 	= true,
@@ -29,9 +29,7 @@ minetest.register_entity("towny:region_visual", {
 	end
 })
 
-function towny.regions.visualize_area(p1,p2,pos)
+function towny.visualize_block(block)
 	-- 8 is half mapblock size
-	local center = {x=p1.x - 8,y=p1.y - 8,z=p1.z - 8}
-
-	local e = minetest.add_entity(center, "towny:region_visual")
+	minetest.add_entity(vector.add(block.pos_min, 8), "towny:region_visual")
 end
