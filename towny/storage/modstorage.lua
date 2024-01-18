@@ -3,76 +3,192 @@
 
 local storage = minetest.get_mod_storage()
 
-local function write_meta(town,scope,data)
-	local data = table.copy(data)
-	data.dirty = nil
-	data.level = nil
+-- deleted towns, blocks, etc. keep their ids
+local function reorder_indexes(array, index)
+	
+	local new_array = {}
+	local new_array_index = 0
 
-	local serialized = minetest.serialize(data)
-	storage:set_string(town.."/"..scope, serialized)
-	data = nil
+	for i = 1, index do
+		if array[i] then
+			new_array_index = new_array_index + 1
+			array[i].index = new_array_index
+			new_array[new_array_index] = array[i]
+		end
+	end
+
+	array = nil
+	index = nil
+
+	return new_array, new_array_index
 end
 
-function towny.storage.save_town_meta(town)
-	local tmeta = towny.towns[town]
-	if tmeta and tmeta.dirty then
-		towny.get_town_level(town, true)
-		write_meta(town,"meta",tmeta)
-		tmeta.dirty = false
-	end
+function towny.storage_save()
+	
+	local i
+	local table_str
+	-- pointers
+	local res
+	local block
+	local town
 
-	local rmeta = towny.regions.memloaded[town]
-	if rmeta and rmeta.dirty then
-		write_meta(town,"region",rmeta)
-		rmeta.dirty = false
+	towny.town_array, towny.town_index =
+		reorder_indexes(towny.town_array, towny.town_index)
+	towny.block_array, towny.block_index =
+		reorder_indexes(towny.block_array, towny.block_index)
+	towny.resident_array, towny.resident_index =
+		reorder_indexes(towny.resident_array, towny.resident_index)
+
+	for i = 1, towny.resident_index do
+		res = towny.resident_array[i]
+		-- no data duplication
+		res.town = nil
+		table_str = minetest.serialize(res)
+		storage:set_string("resident/" .. tostring(res.index), table_str)
+	end
+	for i = 1, towny.block_index do
+		block = towny.block_array[i]
+		block.town = nil
+		table_str = minetest.serialize(towny.block_array[i])
+		storage:set_string("block/" .. tostring(towny.block_array[i].index),
+			table_str)
+	end
+	for i = 1, towny.town_index do
+
+		town = towny.town_array[i]
+		town.block_index = nil
+		town.member_index = nil
+		town.mayor_index = nil
+		table_str = minetest.serialize(towny.town_array[i])
+		storage:set_string("town/" .. tostring(towny.town_array[i].index),
+			table_str)
 	end
 end
 
-function towny.storage.save_nation_meta(nation)
-	if not towny.nations then return end
-	local rmeta = towny.nations.nations[nation]
-	if rmeta and rmeta.dirty then
-		write_meta(nation,"nation",rmeta)
-		rmeta.dirty = false
-	end
+local function convert_to_vector(xyz_table)
+	return vector.new(xyz_table.x, xyz_table.y, xyz_table.z)
 end
 
--- Ideally only ever called once
-function towny.storage.load_all_towns()
-	local keys = {}
-	local store = storage:to_table()
+-- called just after initialization
+function towny.storage_load()
+	local i
+	local storage_table_fields = storage:to_table().fields
+	local res
+	local block
+	local town
+	local is_storage_data = false
 
-	if store and store.fields then
-		store = store.fields
-	end
+	for key, value in pairs(storage_table_fields) do
 
-	for key, data in pairs(store) do
-		local town, scope = key:match("^([%a%d_-]+)/([%a%d_-]+)")
-		if town and scope then
-			local tbl = minetest.deserialize(data)
-			if scope == "meta" then
-				towny.towns[town] = tbl
-				towny.get_town_level(town, true)
-			elseif scope == "region" then
-				towny.regions.memloaded[town] = tbl
-			elseif scope == "nation" and towny.nations then
-				towny.nations.nations[town] = tbl
-				towny.nations.get_nation_level(town, true)
+		local table_type, index = key:match("^([%a%d_-]+)/([%a%d_-]+)")
+		if table_type and index then
+			if table_type == "town" then
+				is_storage_data = true
+				town = minetest.deserialize(value)
+				town.pos = convert_to_vector(town.pos)
+				towny.town_index = towny.town_index + 1
+				towny.town_array[town.index] = town
+
+			elseif table_type == "block" then
+				is_storage_data = true
+				block = minetest.deserialize(value)
+				block.blockpos = convert_to_vector(block.blockpos)
+				block.pos_min = convert_to_vector(block.pos_min)
+				block.pos_max = convert_to_vector(block.pos_max)
+				towny.block_index = towny.block_index + 1
+				towny.block_array[block.index] = block
+
+			elseif table_type == "resident" then
+				is_storage_data = true
+				res = minetest.deserialize(value)
+				towny.resident_index = towny.resident_index + 1
+				towny.resident_array[res.index] = res
 			end
+		end
+	end
+
+	-- put everything that couldn't be stored together
+
+	if is_storage_data then
+		for i = 1, towny.town_index do
+			town = towny.town_array[i]
+
+			town.blocks = {}
+			town.block_index = 0
+			town.members = {}
+			town.member_index = 0
+			town.mayors = {}
+			town.mayor_index = 0
+		end
+		-- residents
+		for i = 1, towny.resident_index do
+			
+			res = towny.resident_array[i]
+			town = towny.get_town_by_id(res.town_id)
+			
+			if town then
+				res.town = town
+				town.member_index = town.member_index + 1
+				town.members[town.member_index] = res
+				if res.is_mayor then
+					town.mayor_index = town.mayor_index + 1
+					town.mayors[town.mayor_index] = res
+				end
+			end
+		end
+		for i = 1, towny.block_index do
+			
+			block = towny.block_array[i]
+			town = towny.get_town_by_id(block.town_id)
+
+			if town then
+				block.town = town
+				town.block_index = town.block_index + 1
+				town.blocks[town.block_index] = block
+			end
+		end
+		for i = 1, towny.town_index do
+			town = towny.town_array[i]
+
+			town.block_count = town.block_index
+			town.member_count = town.member_index
+			town.mayor_count = town.mayor_index
 		end
 	end
 end
 
-function towny.storage.delete_all_meta(town)
-	if storage:get_string(town.."/meta") ~= "" then
-		storage:set_string(town.."/meta", "")
+-- delete all data
+function towny.delete_all_data()
+
+	-- storage
+	local storage_table_fields = storage:to_table().fields
+	
+	for key, value in pairs(storage_table_fields) do
+		local table_type, index = key:match("^([%a%d_-]+)/([%a%d_-]+)")
+		if table_type and index then
+			storage:set_string(table_type .. "/" .. index, "")
+		end
 	end
 
-	if storage:get_string(town.."/region") ~= "" then
-		storage:set_string(town.."/region", "")
+	-- memory
+	local i
+	for i = 1, towny.resident_index do
+		towny.resident_array[i] = nil
 	end
+	towny.resident_index = 0
+	towny.resident_id_count = 0
+	
+	for i = 1, towny.block_index do
+		towny.block_array[i] = nil
+	end
+	towny.block_index = 0
+	towny.block_id_count = 0
+	
+	for i = 1, towny.town_index do
+		towny.town_array[i] = nil
+	end
+	towny.town_index = 0
+	towny.town_id_count = 0
 
-	if storage:get_string(town.."/nation") ~= "" then
-		storage:set_string(town.."/nation", "")
-	end
+	minetest.request_shutdown("All towny data was deleted by towny admin", false, 0)
 end

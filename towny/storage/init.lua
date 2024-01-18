@@ -1,15 +1,28 @@
 
 if towny.settings.storage_engine == "modstorage" then
 	-- TODO: update modstorage.lua
-	--dofile(towny.modpath.."/storage/modstorage.lua")
+	dofile(towny.modpath.."/storage/modstorage.lua")
 -- TODO: remove support for flatfile
 elseif towny.settings.storage_engine == "flatfile" then
 	minetest.log("warning", "Using flatfile for towny storage is discouraged!")
-	dofile(towny.modpath.."/storage/flatfile.lua")
+	--dofile(towny.modpath.."/storage/flatfile.lua")
 
 else
 	error("Invalid storage engine for towny configured.")
 end
+
+minetest.register_on_mods_loaded(function ()
+
+	print("[towny] Loading towny storage.")
+	--print("[towny] Deleting storage.") towny.storage_delete()
+	towny.storage_load()
+end)
+
+minetest.register_on_shutdown(function ()
+
+	print("[towny] Saving towny memory to storage.")
+	towny.storage_save()
+end)
 
 --[[ TODO:
 local clock = 0

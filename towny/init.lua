@@ -3,8 +3,6 @@
 
 -- TODO: Economy
 -- TODO: Refactor towns, settings, and mapsblocks
--- TODO: `resident` class
--- TODO: storage
 -- TODO: merge towny_nations into towny 
 -- TODO: plots
 
@@ -20,80 +18,93 @@ towny = {
 			minetest.settings:get_bool('towny_vertical_towns', false),
 		eco_enabled = false,
 	},
+
+	--[[
+	--	rnao
+	--	0000 no perms
+	--	0001 outsider
+	--	0010 ally
+	--	0100 nation
+	--	1000 resident
+	--]]
+	-- perm enum
+	NO_PERMS = 0,
+	OUTSIDER = 1,
+	ALLY = 2,
+	NATION = 4,
+	RESIDENT = 8,
+
+	-- New tables like `{}` (except for vector) cant be serialized
+	-- with `minetest.serialize`, so cant be stored,
+	-- they must be recreated when class is loaded.
 	
-	-- (claimed by a town) mapblock class
+	-- (claimed by a town) mapblock class / struct
 	block = {
-		id = 0,
-		name = nil, --string
-		town = nil, -- town, town that owns this block
-		plot = nil, -- Plot ID if this claim block is plotted
+		id = 0, -- unique id
+		index = 0, -- index where this block lives in `block_array`
+		name = "",
+		town_id = 0, -- int, id of town that owns this block
+		town = nil, -- town, pointer to owner town
+		is_plotted = false,
+		plot_id = 0, -- int , Plot ID if this claim block is plotted
 		is_town_center = false,
 		blockpos = {}, -- vector, block position
 		pos_min = {}, -- vector, min pos
 		pos_max = {}, -- vector, max pos
-		perms = {
-			build = {
-				resident = false,
-				nation = false,
-				ally = false,
-				outsider = false,
-			},	
-			destroy = {
-				resident = false,
-				nation = false,
-				ally = false,
-				outsider = false,
-			},
-			switch = {
-				resident = false,
-				nation = false,
-				ally = false,
-				outsider = false,
-			},
-			itemuse = {
-				resident = false,
-				nation = false,
-				ally = false,
-				outsider = false,
-			},
-		},
-	},
-	
-	-- Town class
-	town = {
-		id = 0,
-		name = nil, -- string
-		members = {}, -- resident table
-		member_count = 0, 
-		mayors = {}, -- resident table
-		mayor_count = 0,
-		blocks = {},-- block table, owned mapblocks
-		block_count = 0,
-		flags = nil, -- TODO: remove this
-		pos = {} -- vector
+		perm_build = 0,
+		perm_destroy = 0,
+		perm_switch = 0,
+		perm_itemuse = 0,
 	},
 
-	-- resident class
-	resident = {
+	-- TODO: plots
+	
+	-- Town class / struct
+	town = {
+		blocks = {}, -- block table
+		block_index = 0, -- greatest index
+		block_count = 0,
 		id = 0,
-		nickname = nil, -- string
-		name = nil, -- string, minetest name ex. 'singleplayer'
+		index = 0,
+		name = "",
+		members = {}, -- resident table
+		member_index = 0,
+		member_count = 0,
+		mayors = {}, -- resident table
+		mayor_index = 0,
+		mayor_count = 0,
+		flags = nil, -- TODO: remove this
+		pos = {}, -- vector
+	},
+
+	-- resident class / struct
+	resident = {
+		-- TODO: implement friends
+		-- int, resident[1] [2] [3] etc. are resident's friend's ids
+		friends = {}, -- resident table
+		-- greatest index of resident friend ids and `friends`
+		friend_index = 0, 
+		friend_count = 0,
+		id = 0,
+		index = 0,
+		nickname = "", -- changeable name
+		name = "", -- minetest name ex. 'singleplayer'
+		town_id = 0, -- resident town id
 		town = nil, -- town, resident town
-		friends = {}, -- other residents
+		is_mayor = false,
 	},
 	
-	-- Mapblocks loaded into memory cache
-	block_array = {},
-	block_count = 0,
+	block_array = {}, -- Mapblocks loaded into memory cache
+	block_index = 0, -- Greatest index in block_array
+	block_id_count = 0, -- Greatest current id for blocks,
 	
 	town_array   = {},
-	town_count = 0,
+	town_index = 0,
+	town_id_count = 0,
 
 	resident_array = {},
-	resident_count = 0,
-	
-	-- not sure what this does?
-	storage = {},
+	resident_index = 0,
+	resident_id_count = 0,
 	
 	-- economy
 	eco     = {},
@@ -191,16 +202,22 @@ towny = {
 	},
 
 	-- Set to true if files need to be updated
-	dirty = false,
+	--dirty = false,
 }
 
 -- block class constructor
 function towny.block.new(pos, town)
+	
 	local block = {}
 	setmetatable(block, towny.block)
 	towny.block.__index = towny.block
-	towny.block_count = towny.block_count + 1
-	block.id = towny.block_count
+
+	towny.block_index = towny.block_index + 1
+	block.index = towny.block_index
+	towny.block_array[block.index] = block
+
+	towny.block_id_count = towny.block_id_count + 1
+	block.id = towny.block_id_count
 
 	block.blockpos = vector.new(math.floor(pos.x / 16),
 		math.floor(pos.y / 16),
@@ -210,33 +227,79 @@ function towny.block.new(pos, town)
 		block.blockpos.z * 16 - 0.5)
 	block.pos_max = vector.add(block.pos_min, 16)
 	
+	block.town_id = town.id
 	block.town = town
-	towny.block_array[towny.block_count] = block
 
-	town.block_count = town.block_count + 1
-	town.blocks[town.block_count] = block
+	town.block_index = town.block_index + 1
+	town.blocks[town.block_index] = block
+
+	block.perm_build = towny.NO_PERMS
+	block.perm_destroy = towny.NO_PERMS
+	block.perm_switch = towny.NO_PERMS
+	block.perm_itemuse = towny.NO_PERMS
 
 	return block
 end
 
 -- resident class constructor
 function towny.resident.new(player)
-	local resident = {}
 
+	local resident = {}
 	setmetatable(resident, towny.resident)
 	towny.resident.__index = towny.resident
-	towny.resident_count = towny.resident_count + 1
-	resident.id = towny.resident_count
+
+	towny.resident_index = towny.resident_index + 1
+	resident.index = towny.resident_index
+	towny.resident_array[resident.index] = resident
+
+	towny.resident_id_count = towny.resident_id_count + 1
+	resident.id = towny.resident_id_count
+
 	resident.name = player:get_player_name()
-	resident.nickname = resident.name -- can be changed later
-	towny.resident_array[towny.resident_count] = resident
+	resident.nickname = resident.name -- can be changed later by player
+	resident[1] = 12
+	resident[2] = 6
+	resident[3] = nil
+	resident[4] = 4
 	
 	return resident
 end
 
-minetest.register_on_joinplayer(function(player)
-	towny.resident.new(player)
-end)
+function towny.get_town_by_id(town_id)
+
+	local i
+	for i = 1, towny.town_index do
+		if towny.town_array[i].id == town_id then
+			return towny.town_array[i]
+		end
+	end
+
+	return nil
+end
+
+function towny.get_resident_by_id(resident_id)
+
+	local i
+	for i = 1, towny.resident_index do
+		if towny.resident_array[i].id == resident_id then
+			return towny.resident_array[i]
+		end
+	end
+
+	return nil
+end
+
+function towny.get_block_by_id(block_id)
+
+	local i
+	for i = 1, towny.block_index do
+		if towny.block_array[i].id == block_id then
+			return towny.block_array[i]
+		end
+	end
+
+	return nil
+end
 
 dofile(towny.modpath .. "/storage/init.lua")
 dofile(towny.modpath .. "/visualize.lua")

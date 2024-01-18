@@ -83,17 +83,19 @@ end
 
 --]]
 -- use the players head, not their feet.
--- TODO: use this function instead
-function towny.get_pos(player_name)
-	local pos = minetest.get_player_by_name(player_name):get_pos()
+function towny.get_player_pos(player)
+	local pos = player:get_pos()
         pos.y = pos.y + 2
         return pos
 end
 
 -- town class constructor
-function towny.town.new(player_name, town_name)
+function towny.town.new(player, town_name)
 	
-	local player_pos = towny.get_pos(player_name)
+	local minetest_player_pos = player:get_pos()
+	local towny_player_pos = minetest_player_pos:copy() 
+	towny_player_pos.y = towny_player_pos.y + 2
+	local res = towny.get_resident_by_name(player:get_player_name())
 
 	--[[
 	local is_towny_admin = minetest.check_player_privs(player_name, { towny_admin = true })
@@ -123,26 +125,31 @@ function towny.town.new(player_name, town_name)
 	local town = {}
 	setmetatable(town, towny.town)
 	towny.town.__index = towny.town
-	towny.town_count = towny.town_count + 1
-	town.id = towny.town_count
+
+	towny.town_index = towny.town_index + 1
+	town.index = towny.town_index
+	towny.town_array[town.index] = town
+
+	towny.town_id_count = towny.town_id_count + 1
+	town.id = towny.town_id_count
 	
-	local block = towny.block.new(player_pos, town)
+	local block = towny.block.new(towny_player_pos, town)
 	block.is_town_center = true
 	
-	town.pos = player_pos
+	-- teleport pos
+	town.pos = minetest_player_pos:copy()
 	town.name = town_name
 
-	town.member_count = town.member_count + 1
-	town.members[town.member_count] = player_name
+	town.member_index = town.member_index + 1
+	town.members[town.member_index] = res
 	
-	town.mayor_count = town.mayor_count + 1
-	town.mayors[town.mayor_count] = player_name
+	town.mayor_index = town.mayor_index + 1
+	town.mayors[town.mayor_index] = res
 	
-	local res = towny.get_resident_by_name(player_name)
+	res.town_id = town.id
 	res.town = town
+	res.is_mayor = true
 	
-	towny.town_array[town.id] = town
-
 	--[[
 	if towny.regions.protection_mod(p1,p2) then
 		return err_msg(player, "This area is protected by another protection mod! Please ensure that this is not the case.")
@@ -891,3 +898,9 @@ minetest.register_on_joinplayer(function (player)
 		minetest.colorize("#02aacc", tdata.flags["greeting"]))
 end)
 ]]--
+
+minetest.register_on_joinplayer(function(player)
+	if not towny.get_resident_by_name(player:get_player_name()) then
+		towny.resident.new(player)
+	end
+end)

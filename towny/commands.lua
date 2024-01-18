@@ -141,12 +141,16 @@ local function create_town_info_str(town)
 	local i
 
 	str = str .. town.name .. "\nMayor(s): ["
-	for i = 1, town.mayor_count do
-		str = str .. town.mayors[i] .. " "
+	for i = 1, town.mayor_index do
+		if town.mayors[i] then
+			str = str .. town.mayors[i].nickname .. " "
+		end
 	end
 	str = str .. "]\nLocation: " .. town.pos:to_string() .. "\nMembers: ["
-	for i = 1, town.member_count do
-		str = str .. town.members[i] .. " "
+	for i = 1, town.member_index do
+		if town.members[i] then
+			str = str .. town.members[i].nickname .. " "
+		end
 	end
 	str = str .. "]\nOwned blocks: " .. town.block_count
 
@@ -255,10 +259,39 @@ local function get_paramc_and_paramv(params)
 end
 
 local function towny_command(player_name, params)
+	
+	local player = minetest.get_player_by_name(player_name)
+	if not player then return false, "Can't run command on behalf of offline player." end
+	
+	local paramc, paramv = get_paramc_and_paramv(params)
+
+	if paramv[1]:len() == 0 then
+		-- TODO: towny info
+		return true, "towny"
+	end
+
+	if paramv[1] == "delete" then
+
+		-- 'delete I WANT TO DELETE ALL TOWNY DATA' is 8 words
+		if paramc > 7 then
+			if paramv[2] == "I" and 
+				paramv[3] == "WANT" and
+				paramv[4] == "TO" and
+				paramv[5] == "DELETE" and
+				paramv[6] == "ALL" and
+				paramv[7] == "TOWNY" and
+				paramv[8] == "DATA" then
+				
+				towny.delete_all_data()
+				return true, "Deleted all towny data..."
+			end
+		end
+		
+		return false, "WARNING: This will PERMANENTLY DELETE ALL TOWNY DATA for this server! The data would be wiped and the server would shut down. Please run this command again with 'I WANT TO DELETE ALL TOWNY DATA' without the ' quotes in all caps typed after it."
+	end
 end
 
-local function town_command (player_name, params)
-
+local function town_command(player_name, params)
 
 	local player = minetest.get_player_by_name(player_name)
 	if not player then return false, "Can't run command on behalf of offline player." end
@@ -267,14 +300,15 @@ local function town_command (player_name, params)
 	local resident = towny.get_resident_by_name(player_name)
 
 	if paramv[1]:len() == 0 then 
-		if resident.town then
-			return true, create_town_info_str(resident.town)
-		end
+		if not resident.town then
 			return false, "You are not currently in a town."
+		end
+		return true, create_town_info_str(resident.town)
 	end
 
 
 	if paramv[1] == "help" then
+		-- TODO: help
 		return true, "help" --print_help(pr2)
 	end
 
@@ -290,9 +324,25 @@ local function town_command (player_name, params)
 		if not resident.town then
 			return false, "You don't have a town!"
 		end
+	
+		local player_pos = towny.get_player_pos(player)
+		local i
+		for i = 1, towny.block_index do
+			local block = towny.block_array[i]
+			if player_pos.x > block.pos_min.x and 
+				player_pos.x < block.pos_max.x and
+				player_pos.y > block.pos_min.y and 
+				player_pos.y < block.pos_max.y and
+				player_pos.z > block.pos_min.z and 
+				player_pos.z < block.pos_max.z then
+				
+				return false, "This area is already claimed!"
+			end
+		end
 
-		towny.extend_town(towny.get_pos(player_name), resident.town)
-		return true, "Successfully claimed block " .. resident.town.blocks[resident.town.block_count].blockpos:to_string() .. "."
+
+		towny.extend_town(towny.get_player_pos(player), resident.town)
+		return true, "Successfully claimed block " .. resident.town.blocks[resident.town.block_index].blockpos:to_string() .. "."
 	end
 
 	if (paramc > 1) then
@@ -302,7 +352,7 @@ local function town_command (player_name, params)
 				return false, "You're already in a town!" 
 			end
 
-			local town = towny.town.new(player_name, paramv[2])
+			local town = towny.town.new(player, paramv[2])
 
 			minetest.chat_send_all(("%s has started a new town called '%s'!"):format(player_name,
 				town.name))
