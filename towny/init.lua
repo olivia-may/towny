@@ -301,7 +301,7 @@ function towny.get_block_by_id(block_id)
 	return nil
 end
 
-dofile(towny.modpath .. "/storage/init.lua")
+dofile(towny.modpath .. "/storage.lua")
 dofile(towny.modpath .. "/visualize.lua")
 --dofile(towny.modpath .. "/regions.lua")
 dofile(towny.modpath .. "/town.lua")
