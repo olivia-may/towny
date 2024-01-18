@@ -126,8 +126,8 @@ function towny.town.new(player, town_name)
 	setmetatable(town, towny.town)
 	towny.town.__index = towny.town
 
-	towny.town_index = towny.town_index + 1
-	town.index = towny.town_index
+	towny.town_count = towny.town_count + 1
+	town.index = towny.town_count
 	towny.town_array[town.index] = town
 
 	towny.town_id_count = towny.town_id_count + 1
@@ -140,11 +140,11 @@ function towny.town.new(player, town_name)
 	town.pos = minetest_player_pos:copy()
 	town.name = town_name
 
-	town.member_index = town.member_index + 1
-	town.members[town.member_index] = res
+	town.member_count = town.member_count + 1
+	town.members[town.member_count] = res
 	
-	town.mayor_index = town.mayor_index + 1
-	town.mayors[town.mayor_index] = res
+	town.mayor_count = town.mayor_count + 1
+	town.mayors[town.mayor_count] = res
 	
 	res.town_id = town.id
 	res.town = town

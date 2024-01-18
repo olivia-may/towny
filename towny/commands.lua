@@ -141,13 +141,13 @@ local function create_town_info_str(town)
 	local i
 
 	str = str .. town.name .. "\nMayor(s): ["
-	for i = 1, town.mayor_index do
+	for i = 1, town.mayor_count do
 		if town.mayors[i] then
 			str = str .. town.mayors[i].nickname .. " "
 		end
 	end
 	str = str .. "]\nLocation: " .. town.pos:to_string() .. "\nMembers: ["
-	for i = 1, town.member_index do
+	for i = 1, town.member_count do
 		if town.members[i] then
 			str = str .. town.members[i].nickname .. " "
 		end
@@ -327,7 +327,7 @@ local function town_command(player_name, params)
 	
 		local player_pos = towny.get_player_pos(player)
 		local i
-		for i = 1, towny.block_index do
+		for i = 1, towny.block_count do
 			local block = towny.block_array[i]
 			if player_pos.x > block.pos_min.x and 
 				player_pos.x < block.pos_max.x and
@@ -342,7 +342,7 @@ local function town_command(player_name, params)
 
 
 		towny.extend_town(towny.get_player_pos(player), resident.town)
-		return true, "Successfully claimed block " .. resident.town.blocks[resident.town.block_index].blockpos:to_string() .. "."
+		return true, "Successfully claimed block " .. resident.town.blocks[resident.town.block_count].blockpos:to_string() .. "."
 	end
 
 	if (paramc > 1) then

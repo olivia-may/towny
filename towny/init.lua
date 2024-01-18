@@ -34,10 +34,6 @@ towny = {
 	NATION = 4,
 	RESIDENT = 8,
 
-	-- New tables like `{}` (except for vector) cant be serialized
-	-- with `minetest.serialize`, so cant be stored,
-	-- they must be recreated when class is loaded.
-	
 	-- (claimed by a town) mapblock class / struct
 	block = {
 		id = 0, -- unique id
@@ -62,16 +58,13 @@ towny = {
 	-- Town class / struct
 	town = {
 		blocks = {}, -- block table
-		block_index = 0, -- greatest index
 		block_count = 0,
 		id = 0,
 		index = 0,
 		name = "",
 		members = {}, -- resident table
-		member_index = 0,
 		member_count = 0,
 		mayors = {}, -- resident table
-		mayor_index = 0,
 		mayor_count = 0,
 		flags = nil, -- TODO: remove this
 		pos = {}, -- vector
@@ -83,8 +76,7 @@ towny = {
 		-- int, resident[1] [2] [3] etc. are resident's friend's ids
 		friends = {}, -- resident table
 		-- greatest index of resident friend ids and `friends`
-		friend_index = 0, 
-		friend_count = 0,
+		friend_count = 0, 
 		id = 0,
 		index = 0,
 		nickname = "", -- changeable name
@@ -95,15 +87,16 @@ towny = {
 	},
 	
 	block_array = {}, -- Mapblocks loaded into memory cache
-	block_index = 0, -- Greatest index in block_array
-	block_id_count = 0, -- Greatest current id for blocks,
+	block_count = 0, -- Greatest index in block_array
+	block_id_count = 0, -- Greatest current id for blocks, an id for a
+				-- class always stays the same
 	
 	town_array   = {},
-	town_index = 0,
+	town_count = 0,
 	town_id_count = 0,
 
 	resident_array = {},
-	resident_index = 0,
+	resident_count = 0,
 	resident_id_count = 0,
 	
 	-- economy
@@ -212,8 +205,8 @@ function towny.block.new(pos, town)
 	setmetatable(block, towny.block)
 	towny.block.__index = towny.block
 
-	towny.block_index = towny.block_index + 1
-	block.index = towny.block_index
+	towny.block_count = towny.block_count + 1
+	block.index = towny.block_count
 	towny.block_array[block.index] = block
 
 	towny.block_id_count = towny.block_id_count + 1
@@ -230,8 +223,8 @@ function towny.block.new(pos, town)
 	block.town_id = town.id
 	block.town = town
 
-	town.block_index = town.block_index + 1
-	town.blocks[town.block_index] = block
+	town.block_count = town.block_count + 1
+	town.blocks[town.block_count] = block
 
 	block.perm_build = towny.NO_PERMS
 	block.perm_destroy = towny.NO_PERMS
@@ -248,8 +241,8 @@ function towny.resident.new(player)
 	setmetatable(resident, towny.resident)
 	towny.resident.__index = towny.resident
 
-	towny.resident_index = towny.resident_index + 1
-	resident.index = towny.resident_index
+	towny.resident_count = towny.resident_count + 1
+	resident.index = towny.resident_count
 	towny.resident_array[resident.index] = resident
 
 	towny.resident_id_count = towny.resident_id_count + 1
@@ -268,7 +261,7 @@ end
 function towny.get_town_by_id(town_id)
 
 	local i
-	for i = 1, towny.town_index do
+	for i = 1, towny.town_count do
 		if towny.town_array[i].id == town_id then
 			return towny.town_array[i]
 		end
@@ -280,7 +273,7 @@ end
 function towny.get_resident_by_id(resident_id)
 
 	local i
-	for i = 1, towny.resident_index do
+	for i = 1, towny.resident_count do
 		if towny.resident_array[i].id == resident_id then
 			return towny.resident_array[i]
 		end
@@ -292,7 +285,7 @@ end
 function towny.get_block_by_id(block_id)
 
 	local i
-	for i = 1, towny.block_index do
+	for i = 1, towny.block_count do
 		if towny.block_array[i].id == block_id then
 			return towny.block_array[i]
 		end
