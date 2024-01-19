@@ -20,10 +20,11 @@ minetest.register_entity("towny:region_visual", {
 	on_punch = function(self)
 		self.object:remove()
 	end,
-	timer0 = 0,
-	on_step = function (self,dt)
-		self.timer0 = self.timer0 + 1
-		if self.timer0 > 600 then
+	timer = 0,
+	on_step = function (self,dtime)
+		self.timer = self.timer + dtime
+		-- 60 seconds
+		if self.timer > 10 then
 			self.object:remove()
 		end
 	end

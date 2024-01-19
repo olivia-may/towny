@@ -11,28 +11,6 @@ minetest.register_privilege("towny_admin", {
 	give_to_singleplayer = false
 })
 
--- Color short-hands
-
-local function fc(f,c)
-	return minetest.colorize(f,c)
-end
-
-local function b(c)
-	return fc("#04a5ea", c)
-end
-
-local function b1(c)
-	return fc("#35bbf4", c)
-end
-
-local function b2(c)
-	return fc("#5bc3ef", c)
-end
-
-local function g(c)
-	return fc("#1a9b25", c)
-end
-
 -- API
 
 --[[
@@ -114,26 +92,6 @@ local function invite_respond(player,response)
 
 	return false, "You do not have any pending invites."
 end
-
-function towny.chat.send_flags (flags,message)
-	local shiny = {}
-	for flag,value in pairs(flags) do
-		if type(value) == "table" then
-			if value.x and value.y and value.z then
-				value = minetest.pos_to_string(value)
-			else
-				value = dump(value)
-			end
-		elseif type(value) == "boolean" then
-			local str_value = "true"
-			if value == false then str_value = "false" end
-			value = str_value
-		end
-		shiny[#shiny+1] = flag..": "..value
-	end
-
-	return true, message ..": "..table.concat( shiny, ", " )
-end
 ]]--
 local function create_town_info_str(town)
 
@@ -156,80 +114,53 @@ local function create_town_info_str(town)
 
 	return str
 end
---[[
-function towny.chat.print_flag_info(pad, tbl)
-	local flags = {}
-	for i,v in pairs(tbl) do
-		if type(v) == "table" and v[3] ~= false then
-			table.insert(flags, pad .. i .. " (" .. v[1] ..") " .. v[2])
-		end
-	end
-	return flags
-end
 
-local function print_help(category)
-	if not category then
-		category = ""
-	end
+--[[
+local function create_towny_help_str()
 
 	local str = ""
-	local tmp = b(" /town")
 
-	if category == "" or category == "all" then
-		str = str .. g("Basic Towny commands") .. "\n"
-		str = str .. tmp .. " - Show information about your town" .. "\n"
-		str = str .. tmp .. b1(" help") .. " [<category>|all] - " .. "Help on commands" .. "\n"
-		str = str .. "   Help categories: members,claim,plot,flags" .. "\n"
-		str = str .. tmp .. b1(" new") .. " <town name> - " .. "Create a new town at your current position" .. "\n"
-		str = str .. tmp .. b1(" info") .. " <town name> - " .. "Show information about another town" .. "\n"
-		str = str .. tmp .. b1(" teleport") .. " - " .. "Teleport to the center of your town" .. "\n"
-		str = str .. tmp .. b1(" abandon") .. " - " .. "Abandon your town (deleting it)" .. "\n"
-	end
+	str = str .. "Basic Towny commands\n"
+	str = str .. "/town - Show information about your town\n"
+	str = str ..  .. b1(" help") .. " [<category>|all] - " .. "Help on commands" .. "\n"
+	str = str .. "   Help categories: members,claim,plot,flags" .. "\n"
+	str = str .. tmp .. b1(" new") .. " <town name> - " .. "Create a new town at your current position" .. "\n"
+	str = str .. tmp .. b1(" info") .. " <town name> - " .. "Show information about another town" .. "\n"
+	str = str .. tmp .. b1(" teleport") .. " - " .. "Teleport to the center of your town" .. "\n"
+	str = str .. tmp .. b1(" abandon") .. " - " .. "Abandon your town (deleting it)" .. "\n"
 
-	if category == "members" or category == "all" then
-		str = str .. g("Help for Towny member management") .. "\n"
-		str = str .. tmp .. b1(" invite") .. " <player> - " .. "Invite someone to your town" .. "\n"
-		str = str .. tmp .. b1(" kick") .. " <kick> - " .. "Kick someone from your town" .. "\n"
-		str = str .. tmp .. b1(" join") .. " <town name> - " .. "Join a town" .. "\n"
-		str = str .. tmp .. b1(" leave") .. " - " .. "Leave your current town" .. "\n"		
-	end
+	str = str .. g("Help for Towny member management") .. "\n"
+	str = str .. tmp .. b1(" invite") .. " <player> - " .. "Invite someone to your town" .. "\n"
+	str = str .. tmp .. b1(" kick") .. " <kick> - " .. "Kick someone from your town" .. "\n"
+	str = str .. tmp .. b1(" join") .. " <town name> - " .. "Join a town" .. "\n"
+	str = str .. tmp .. b1(" leave") .. " - " .. "Leave your current town" .. "\n"		
 
-	if category == "claim" or category == "all" then
-		str = str .. g("Help for Towny claims") .. "\n"
-		str = str .. tmp .. b1(" claim") .. " - " .. "Claim land for your town at your current position" .. "\n"
-		str = str .. tmp .. b1(" unclaim") .. " - " .. "Unclaim the currently stood in block" .. "\n"
-		str = str .. tmp .. b1(" visualize") .. " - " .. "Display your currently claimed blocks" .. "\n"
-	end
+	str = str .. g("Help for Towny claims") .. "\n"
+	str = str .. tmp .. b1(" claim") .. " - " .. "Claim land for your town at your current position" .. "\n"
+	str = str .. tmp .. b1(" unclaim") .. " - " .. "Unclaim the currently stood in block" .. "\n"
+	str = str .. tmp .. b1(" visualize") .. " - " .. "Display your currently claimed blocks" .. "\n"
 
-	if category == "plot" or category == "all" then
-		str = str .. g("Help for Towny plots") .. "\n"
-		str = str .. tmp .. b1(" plot ") .. "- " .. "Manage plots" .. "\n"
-		str = str .. tmp .. b1(" plot ") .. b2("claim") .. " - " .. "Claim this plot" .. "\n"
-		str = str .. tmp .. b1(" plot ") .. b2("abandon") .. " - " .. "Abandon this plot" .. "\n"
-		str = str .. tmp .. b1(" plot ") .. b2("delete") .. " - " .. "Delete this plot" .. "\n"
-		str = str .. tmp .. b1(" plot ") .. b2("flags") .. " - " .. "Display plot flags" .. "\n"
-		str = str .. tmp .. b1(" plot ") .. b2("member") .. " add|remove|flags|set <member> [<flag> <value>] - " 
-			.. "Plot member management" .. "\n"
-	end
+	str = str .. g("Help for Towny plots") .. "\n"
+	str = str .. tmp .. b1(" plot ") .. "- " .. "Manage plots" .. "\n"
+	str = str .. tmp .. b1(" plot ") .. b2("claim") .. " - " .. "Claim this plot" .. "\n"
+	str = str .. tmp .. b1(" plot ") .. b2("abandon") .. " - " .. "Abandon this plot" .. "\n"
+	str = str .. tmp .. b1(" plot ") .. b2("delete") .. " - " .. "Delete this plot" .. "\n"
+	str = str .. tmp .. b1(" plot ") .. b2("flags") .. " - " .. "Display plot flags" .. "\n"
+	str = str .. tmp .. b1(" plot ") .. b2("member") .. " add|remove|flags|set <member> [<flag> <value>] - " 
+		.. "Plot member management" .. "\n"
 
-	if category == "flags" or category == "all" then
-		str = str .. g("Help for Towny town flags") .. "\n"
-		str = str .. tmp .. b1(" flags") .. " - " .. "Display current town flags" .. "\n"
-		str = str .. tmp .. b1(" set") .. " <flag> <value> - " .. "Modify town flags" .. "\n"
+	str = str .. g("Help for Towny town flags") .. "\n"
+	str = str .. tmp .. b1(" flags") .. " - " .. "Display current town flags" .. "\n"
+	str = str .. tmp .. b1(" set") .. " <flag> <value> - " .. "Modify town flags" .. "\n"
 
-		str = str .. g("Available flags for towns:") .. "\n"
-		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.town), "\n") .. "\n"
-		str = str .. g("Available flags for town members:") .. "\n"
-		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.town_member), "\n") .. "\n"
-		str = str .. g("Available flags for town plots:") .. "\n"
-		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.plot), "\n") .. "\n"
-		str = str .. g("Available flags for town plot members:") .. "\n"
-		str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.plot_member), "\n") .. "\n"
-		if towny.nations then
-			str = str .. g("Available flags for nations:") .. "\n"
-			str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.nation), "\n") .. "\n"
-		end
-	end
+	str = str .. g("Available flags for towns:") .. "\n"
+	str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.town), "\n") .. "\n"
+	str = str .. g("Available flags for town members:") .. "\n"
+	str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.town_member), "\n") .. "\n"
+	str = str .. g("Available flags for town plots:") .. "\n"
+	str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.plot), "\n") .. "\n"
+	str = str .. g("Available flags for town plot members:") .. "\n"
+	str = str .. table.concat(towny.chat.print_flag_info("    ", towny.flags.plot_member), "\n") .. "\n"
 
 	return str
 end

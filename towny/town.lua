@@ -1,58 +1,3 @@
---[[
-local function err_msg(player, msg)
-	minetest.chat_send_player(player, minetest.colorize("#ff1111", msg))
-	return false
-end
-
-local function count(T)
-	local count = 0
-	for _ in pairs(T) do count = count + 1 end
-	return count
-end
-
-local function flag_typeify(value,pos)
-	if type(value) == "string" then
-		if value == "true" then
-			value = true
-		elseif value == "false" then
-			value = false
-		elseif value == "here" and pos then
-			value = pos
-		elseif value == "none" or value == "null" or value == "nil" then
-			value = nil
-		elseif tonumber(value) ~= nil then
-			value = tonumber(value)
-		elseif minetest.string_to_pos(value) ~= nil then
-			value = minetest.string_to_pos(value)
-		end
-	end
-	return value
-end
-
-function towny.flag_validity(flag,scope,value,pos,members)
-	value = flag_typeify(value,pos)
-	local spd = towny.flags[scope]
-	if type(spd[flag]) == "string" then
-		flag = spd[flag]
-	end
-
-	if not spd[flag] then return false end
-	if spd[flag][3] == false then return false end
-	local flgtype = spd[flag][1]
-
-	if flgtype == "member" and (members and not members[tostring(value)]) then
-		return false
-	elseif flgtype == "member" and value == nil then
-		return false
-	elseif flgtype == "vector" and (value and (not value.x or not value.y or not value.z)) then
-		return false
-	elseif (flgtype == "string" or flgtype == "number") and type(value) ~= flgtype then
-		return false
-	end
-
-	return true, flag, value
-end
-]]--
 function towny.get_resident_by_name(player_name)
 	for i, resident in ipairs(towny.resident_array) do
 		if resident.name == player_name then
@@ -62,26 +7,7 @@ function towny.get_resident_by_name(player_name)
 
 	return nil
 end
---[[
-function towny.get_town_by_name(name)
-	if not name then return nil end
-	for town,data in pairs(towny.towns) do
-		if data.name:lower() == name:lower() then
-			return town
-		end
-	end
-	return nil
-end
 
-function towny.mark_dirty(town, areas)
-	towny.dirty = true
-	towny.towns[town].dirty = true
-	if areas and towny.regions.memloaded[town] then
-		towny.regions.memloaded[town].dirty = true
-	end
-end
-
---]]
 -- use the players head, not their feet.
 function towny.get_player_pos(player)
 	local pos = player:get_pos()
@@ -100,10 +26,6 @@ function towny.town.new(player, town_name)
 	--[[
 	local is_towny_admin = minetest.check_player_privs(player_name, { towny_admin = true })
 	
-	if towny.get_player_town(player) then
-		return err_msg(player, "You're already in a town! Please leave your current town before founding a new one!")
-	end
-
 	local tn,__,distance = towny.regions.get_closest_town(pos)
 	if tn and distance < 16 * towny.regions.distance and not towny_admin then
 		return err_msg(player, "This location is too close to another town!")
@@ -154,15 +76,12 @@ function towny.town.new(player, town_name)
 	if towny.regions.protection_mod(p1,p2) then
 		return err_msg(player, "This area is protected by another protection mod! Please ensure that this is not the case.")
 	end
-	]]--
-
-
-	--towny.mark_dirty(id, true)
 
 	-- Remove money
 	if towny.settings.eco_enabled then
 		--towny.eco.charge_player(player, towny.eco.create_cost)
 	end
+	]]--
 	
 	towny.visualize_block(block)
 	
@@ -186,11 +105,6 @@ function towny.extend_town(player_pos, town)
 	
 	towny.visualize_block(block)
 	--[[
-	local town = towny.get_player_town(player)
-	if not town then
-		return err_msg(player, "You're not currently in a town!")
-	end
-
 	local data = towny.towns[town]
 	if data.flags['mayor'] ~= player and data.members[player]['claim_create'] ~= true then
 		return err_msg(player, "You do not have permission to spend claim blocks in your town.")
@@ -205,10 +119,6 @@ function towny.extend_town(player_pos, town)
 		return err_msg(player, "You cannot claim this area! Town blocks must be aligned side-by-side.")
 	end
 
-	if towny.regions.town_claim_exists(town,p1) then
-		return err_msg(player, "This area is already claimed.")
-	end
-
 	if closest_town ~= town then
 		return err_msg(player, "Something went wrong!")
 	end
@@ -217,10 +127,6 @@ function towny.extend_town(player_pos, town)
 	if towny.regions.protection_mod(p1,p2) then
 		return err_msg(player, "This area is protected by another protection mod! Please ensure that this is not the case.")
 	end
-
-	table.insert(towny.regions.memloaded[town].blocks, p1)
-	minetest.chat_send_player(player, ("Successfully claimed this block! You have %d claim blocks left!"):format(towny.get_claims_available(town)))
-	towny.mark_dirty(town, true)
 
 	towny.regions.visualize_area(p1,p2,pos)
 	]]--

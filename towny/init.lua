@@ -11,11 +11,19 @@ towny = {
 	modpath = minetest.get_modpath(minetest.get_current_modname()),
 	
 	settings = {
-		storage_engine = minetest.settings:get("towny_storage_engine") or "modstorage",
                 -- min distance in mapblocks from town center (16x16x16 nodes)
-		town_distance = tonumber(minetest.settings:get('towny_distance')) or 4,
+		town_distance =
+			tonumber(minetest.settings:get('towny_distance')) or 4,
+		-- prevent protectors from other mods being placed in a town
+		prevent_protector = minetest.settings:get_bool(
+			'towny_prevent_protector', true),
+		-- must be invited to towns / nations
+		invite = minetest.settings:get_bool('towny_invite', true),
 		vertical_towns = 
 			minetest.settings:get_bool('towny_vertical_towns', false),
+		autosave_interval = 
+			tonumber(minetest.settings:get(
+			'towny_autosave_interval')) or 900,
 		eco_enabled = false,
 	},
 
@@ -59,6 +67,7 @@ towny = {
 	town = {
 		blocks = {}, -- block table
 		block_count = 0,
+		center_block = nil, -- block, town center block
 		id = 0,
 		index = 0,
 		name = "",
@@ -66,7 +75,6 @@ towny = {
 		member_count = 0,
 		mayors = {}, -- resident table
 		mayor_count = 0,
-		flags = nil, -- TODO: remove this
 		pos = {}, -- vector
 	},
 
@@ -91,7 +99,7 @@ towny = {
 	block_id_count = 0, -- Greatest current id for blocks, an id for a
 				-- class always stays the same
 	
-	town_array   = {},
+	town_array = {},
 	town_count = 0,
 	town_id_count = 0,
 
@@ -158,6 +166,7 @@ towny = {
 	},
 
 	-- TODO: refactor or remove flags
+	--[[
 	flags = {
 		town = {
 			['town_build'] =        {"boolean", "lets everyone build in unplotted town claims"},
@@ -193,9 +202,7 @@ towny = {
 			['build']      = "plot_build",
 		},
 	},
-
-	-- Set to true if files need to be updated
-	--dirty = false,
+	]]--
 }
 
 -- block class constructor
@@ -250,10 +257,6 @@ function towny.resident.new(player)
 
 	resident.name = player:get_player_name()
 	resident.nickname = resident.name -- can be changed later by player
-	resident[1] = 12
-	resident[2] = 6
-	resident[3] = nil
-	resident[4] = 4
 	
 	return resident
 end

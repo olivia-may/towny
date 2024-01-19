@@ -1,20 +1,23 @@
 [Towny]
 
-# Town metadata and region storage engine
-# Recommended to keep as modstorage.
-towny_storage_engine (Storage engine) enum modstorage modstorage,flatfile
-
-# Minimum distance between town centers (in mapblocks)
+# Minimum distance between town centers (in mapblocks).
 towny_distance (Min distance between town centers) int 4
 
-# Prevent protectors from being placed in a town, as towns provide their own protection
-# Recommended to be kept as true, may cause issues with claims otherwise
+# Prevent protectors from being placed in a town, as towns provide their own
+# protection.
+# Recommended to be kept as true, may cause issues with claims otherwise.
 towny_prevent_protector (Prevent protectors from being placed in a town) bool true
 
-# If true, players must be invited into towns (No direct joining)
+# If true, players must be invited into towns (No direct joining).
+# Recommended to be kept as true, to prevent griefing or spamming.
 towny_invite (Invite-based membership) bool true
 
 # Allow towns to be on top of each other, as long as the new town is far
 # enough.
 # By default a new town cannot be made over another.
 towny_vertical_towns (Vertical towns) bool false
+
+# How often towny should autosave, in seconds. Might reduce performance if
+# set to a small value or if towny has a lot of data to save. Set to 15 minutes
+# by default (900 seconds).
+towny_autosave_interval (Autosave interval) int 900

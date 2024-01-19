@@ -1,19 +1,7 @@
-minetest.register_on_mods_loaded(function ()
-
-	print("[towny] Loading towny storage.")
-	towny.storage_load()
-end)
-
-minetest.register_on_shutdown(function ()
-
-	print("[towny] Saving towny memory to storage.")
-	towny.storage_save()
-end)
-
---[[ TODO: autosave
 local clock = 0
-
+local storage = minetest.get_mod_storage()
 local saving = false
+
 local function carrier_tick()
 	if not towny.dirty or saving then return end
 	saving = true
@@ -36,21 +24,6 @@ local function carrier_tick()
 	saving = false
 end
 
--- Autosave every 60 seconds
-minetest.register_globalstep(function (dt)
-	clock = clock + (dt + 1)
-	if clock >= 600 then
-		carrier_tick()
-		clock = 0
-	end
-end)
-
-minetest.after(0.1, function ()
-	towny.storage.load_all_towns()
-end)
-]]--
-
-local storage = minetest.get_mod_storage()
 
 -- deleted towns, blocks, etc. keep their ids
 local function reorder_indexes(array, index)
@@ -252,3 +225,25 @@ function towny.delete_all_data()
 
 	minetest.request_shutdown("All towny data was deleted by towny admin", false, 0)
 end
+
+minetest.register_on_mods_loaded(function ()
+
+	print("[towny] Loading towny storage.")
+	towny.storage_load()
+end)
+
+minetest.register_on_shutdown(function ()
+
+	print("[towny] Saving towny memory to storage.")
+	towny.storage_save()
+end)
+
+minetest.register_globalstep(function (dtime)
+	clock = clock + dtime
+	-- Autosave every x seconds
+	if clock > towny.settings.autosave_interval then
+		print("[towny] Autosaving towny memory to storage.")
+		towny.storage_save()
+		clock = 0
+	end
+end)
