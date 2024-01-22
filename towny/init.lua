@@ -3,7 +3,6 @@
 
 -- TODO: Economy
 -- TODO: Refactor towns, settings, and mapsblocks
--- TODO: merge towny_nations into towny 
 -- TODO: plots
 
 -- `towny` namespace
@@ -207,100 +206,8 @@ towny = {
 	]]--
 }
 
--- block class constructor
-function towny.block.new(pos, town)
-	
-	local block = {}
-	setmetatable(block, towny.block)
-	towny.block.__index = towny.block
-
-	towny.block_count = towny.block_count + 1
-	block.index = towny.block_count
-	towny.block_array[block.index] = block
-
-	towny.block_id_count = towny.block_id_count + 1
-	block.id = towny.block_id_count
-
-	block.blockpos = vector.new(math.floor(pos.x / 16),
-		math.floor(pos.y / 16),
-		math.floor(pos.z / 16))
-	block.pos_min = vector.new(block.blockpos.x * 16 - 0.5,
-		block.blockpos.y * 16 - 0.5,
-		block.blockpos.z * 16 - 0.5)
-	block.pos_max = vector.add(block.pos_min, 16)
-	
-	block.town_id = town.id
-	block.town = town
-
-	town.block_count = town.block_count + 1
-	town.blocks[town.block_count] = block
-
-	block.perm_build = towny.NO_PERMS
-	block.perm_destroy = towny.NO_PERMS
-	block.perm_switch = towny.NO_PERMS
-	block.perm_itemuse = towny.NO_PERMS
-
-	return block
-end
-
--- resident class constructor
-function towny.resident.new(player)
-
-	local resident = {}
-	setmetatable(resident, towny.resident)
-	towny.resident.__index = towny.resident
-
-	towny.resident_count = towny.resident_count + 1
-	resident.index = towny.resident_count
-	towny.resident_array[resident.index] = resident
-
-	towny.resident_id_count = towny.resident_id_count + 1
-	resident.id = towny.resident_id_count
-
-	resident.name = player:get_player_name()
-	resident.nickname = resident.name -- can be changed later by player
-	
-	return resident
-end
-
-function towny.get_town_by_id(town_id)
-
-	local i
-	for i = 1, towny.town_count do
-		if towny.town_array[i].id == town_id then
-			return towny.town_array[i]
-		end
-	end
-
-	return nil
-end
-
-function towny.get_resident_by_id(resident_id)
-
-	local i
-	for i = 1, towny.resident_count do
-		if towny.resident_array[i].id == resident_id then
-			return towny.resident_array[i]
-		end
-	end
-
-	return nil
-end
-
-function towny.get_block_by_id(block_id)
-
-	local i
-	for i = 1, towny.block_count do
-		if towny.block_array[i].id == block_id then
-			return towny.block_array[i]
-		end
-	end
-
-	return nil
-end
-
 dofile(towny.modpath .. "/storage.lua")
-dofile(towny.modpath .. "/visualize.lua")
---dofile(towny.modpath .. "/regions.lua")
+dofile(towny.modpath .. "/resident.lua")
+dofile(towny.modpath .. "/block.lua")
 dofile(towny.modpath .. "/town.lua")
 dofile(towny.modpath .. "/commands.lua")

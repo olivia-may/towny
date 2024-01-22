@@ -1,20 +1,3 @@
-function towny.get_resident_by_name(player_name)
-	for i, resident in ipairs(towny.resident_array) do
-		if resident.name == player_name then
-			return resident
-		end
-	end
-
-	return nil
-end
-
--- use the players head, not their feet.
-function towny.get_player_pos(player)
-	local pos = player:get_pos()
-        pos.y = pos.y + 2
-        return pos
-end
-
 -- town class constructor
 function towny.town.new(player, town_name)
 	
@@ -87,6 +70,36 @@ function towny.town.new(player, town_name)
 	
 	return town
 end
+
+function towny.get_town_by_id(town_id)
+
+	local i
+	for i = 1, towny.town_count do
+		if towny.town_array[i].id == town_id then
+			return towny.town_array[i]
+		end
+	end
+
+	return nil
+end
+
+function towny.get_resident_by_name(player_name)
+	for i, resident in ipairs(towny.resident_array) do
+		if resident.name == player_name then
+			return resident
+		end
+	end
+
+	return nil
+end
+
+-- use the players head, not their feet.
+function towny.get_player_pos(player)
+	local pos = player:get_pos()
+        pos.y = pos.y + 2
+        return pos
+end
+
 
 function towny.visualize_town(town)
 	for i, block in ipairs(town.blocks) do

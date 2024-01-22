@@ -1,35 +1,138 @@
 local modareas = minetest.get_modpath("areas") ~= nil
-local protprev = minetest.settings:get_bool("towny_prevent_protector", true)
 
-local main_is_protected = minetest.is_protected
+--local main_is_protected = minetest.is_protected
 
--- Test to see if a position is in a region
-local function pos_in_region(pos, p1, p2)
-	return (pos.x <= p1.x and pos.y <= p1.y and pos.z <= p1.z) and
-		(pos.x >= p2.x and pos.y >= p2.y and pos.z >= p2.z)
+-- block class constructor
+function towny.block.new(pos, town)
+	
+	local block = {}
+	setmetatable(block, towny.block)
+	towny.block.__index = towny.block
+
+	towny.block_count = towny.block_count + 1
+	block.index = towny.block_count
+	towny.block_array[block.index] = block
+
+	towny.block_id_count = towny.block_id_count + 1
+	block.id = towny.block_id_count
+
+	block.blockpos = vector.new(math.floor(pos.x / 16),
+		math.floor(pos.y / 16),
+		math.floor(pos.z / 16))
+	block.pos_min = vector.new(block.blockpos.x * 16 - 0.5,
+		block.blockpos.y * 16 - 0.5,
+		block.blockpos.z * 16 - 0.5)
+	block.pos_max = vector.add(block.pos_min, 16)
+	
+	block.town_id = town.id
+	block.town = town
+
+	town.block_count = town.block_count + 1
+	town.blocks[town.block_count] = block
+
+	block.perm_build = towny.NO_PERMS
+	block.perm_destroy = towny.NO_PERMS
+	block.perm_switch = towny.NO_PERMS
+	block.perm_itemuse = towny.NO_PERMS
+
+	return block
 end
 
-local function region_equal(v1, v2)
-	return (math.floor(v1.x) == math.floor(v2.x)) and 
-		(math.floor(v1.y) == math.floor(v2.y)) and
-		(math.floor(v1.z) == math.floor(v2.z))
+-- Visualize an area
+-- TODO: Use particles
+
+minetest.register_entity("towny:block_visual", {
+
+	initial_properties = {
+		hp 		= 1,
+		glow 		= 1,
+		physical 	= false,
+		pointable 	= true,
+		visual 		= "cube",
+		-- 16 is mapblock size
+		visual_size = {x = 16, y = 16},
+		textures = {
+			"towny_block_visual.png", "towny_block_visual.png",
+			"towny_block_visual.png", "towny_block_visual.png",
+			"towny_block_visual.png", "towny_block_visual.png"
+		},
+		static_save = false,
+		use_texture_alpha = true,
+	},
+
+	on_punch = function(self)
+		return true
+	end,
+	timer = 0,
+	on_step = function (self,dtime)
+		self.timer = self.timer + dtime
+		-- 10 seconds
+		if self.timer > 10 then
+			self.object:remove()
+		end
+	end
+})
+
+function towny.visualize_block(block)
+	-- 8 is half mapblock size
+	minetest.add_entity(vector.add(block.pos_min, 8), "towny:block_visual")
+end
+
+function towny.get_block_by_id(block_id)
+
+	local i
+	for i = 1, towny.block_count do
+		if towny.block_array[i].id == block_id then
+			return towny.block_array[i]
+		end
+	end
+
+	return nil
+end
+
+-- Test to see if a position is in a block, return block
+function towny.get_block_by_pos(pos)
+	for _, block in ipairs(towny.block_array) do
+		if pos.x > block.pos_min.x and 
+			pos.x < block.pos_max.x and
+			pos.y > block.pos_min.y and 
+			pos.y < block.pos_max.y and
+			pos.z > block.pos_min.z and 
+			pos.z < block.pos_max.z then
+
+			return block
+		end
+	end
+
+	return nil
 end
 
 -- Find any conflicts with protection mods
 -- Do not allow placement of towns in any areas-protected regions, no matter if the user has
 -- build permission there or not.
-function towny.regions.protection_mod(p1,p2)
-	if not protprev then return false end
+function towny.is_protected(pos, player_name)
+	--if not protprev then return false end
+	
+	local block = towny.get_block_by_pos(pos)
+
+	if block then return true end
+
 	if modareas then
-		if #areas:getAreasIntersectingArea(table.copy(p1), table.copy(p2)) > 0 then
+		if #areas:getAreasIntersectingArea(
+			table.copy(block.pos_min), table.copy(block.pos_max)) > 0 then
+			
 			return true
 		end
 	end
+
+	if minetest.is_protected(pos, player_name) then return false end
+
 
 	-- Clear of any other protections
 	return false
 end
 
+--[[
 -- Test to see if there's already a protected node in a region
 function towny.regions.already_protected(p1, p2, name)
 	local found = false
@@ -105,7 +208,7 @@ function towny.regions.ensure_range(p)
 	return p1,p2
 end
 
-function towny.regions.get_town_at(pos)
+function towny.get_town_by_pos(pos)
 	local in_town, in_plot, in_claim
 	for town,regions in pairs(towny.regions.memloaded) do
 		if in_town ~= nil then break end
@@ -204,7 +307,7 @@ function towny.regions.remove_claim(p1,town)
 	local blocks = {}
 	if not towny.regions.memloaded[town] then return false, "This town does not exist anymore." end
 	for _,pos in pairs(towny.regions.memloaded[town].blocks) do
-		if region_equal(p1, pos) and pos['plot'] and towny.towns[town].plots[pos['plot']] then
+		if region_equal(p1, pos) and pos['plot'] and towny.towns[town].plots[pos['plot'] ] then
 			return false, "This town claim defines a plot. Please remove the plot before removing the claim!"
 		elseif region_equal(p1, pos) and pos['origin'] == true then
 			return false, "This town claim is the origin of this town!"
@@ -228,14 +331,6 @@ function towny.regions.set_plot(pos,town,plot)
 	return true
 end
 
-function towny.regions.visualize_town(town)
-	if not towny.regions.memloaded[town] then return end
-	for _,pos in pairs(towny.regions.memloaded[town].blocks) do
-		local p1,p2 = towny.regions.ensure_range(pos)
-		towny.regions.visualize_area(p1,p2,towny.towns[town].flags['origin'])
-	end
-end
-
 function towny.regions.position_protected_from(pos, name)
 	local town,plot = towny.regions.get_town_at(pos)
 	if not town then return false end
@@ -252,3 +347,4 @@ function minetest.is_protected(pos, name)
 
 	return main_is_protected(pos, name)
 end
+]]--
