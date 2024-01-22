@@ -88,11 +88,6 @@ function towny.town.new(player, town_name)
 	return town
 end
 
-function towny.visualize_block(block)
-	-- 8 is half mapblock size
-	minetest.add_entity(vector.add(block.pos_min, 8), "towny:region_visual")
-end
-
 function towny.visualize_town(town)
 	for i, block in ipairs(town.blocks) do
 		towny.visualize_block(block)

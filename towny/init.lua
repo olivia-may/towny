@@ -9,23 +9,23 @@
 -- `towny` namespace
 towny = {
 	modpath = minetest.get_modpath(minetest.get_current_modname()),
-	
-	settings = {
-                -- min distance in mapblocks from town center (16x16x16 nodes)
-		town_distance =
-			tonumber(minetest.settings:get('towny_distance')) or 4,
-		-- prevent protectors from other mods being placed in a town
-		prevent_protector = minetest.settings:get_bool(
-			'towny_prevent_protector', true),
-		-- must be invited to towns / nations
-		invite = minetest.settings:get_bool('towny_invite', true),
-		vertical_towns = 
-			minetest.settings:get_bool('towny_vertical_towns', false),
-		autosave_interval = 
-			tonumber(minetest.settings:get(
-			'towny_autosave_interval')) or 900,
-		eco_enabled = false,
-	},
+
+	-- settings
+
+	-- min distance in mapblocks from town center (16x16x16 nodes)
+	setting_town_distance =
+		tonumber(minetest.settings:get('towny_distance')) or 4,
+	-- prevent protectors from other mods being placed in a town
+	setting_prevent_protector = minetest.settings:get_bool(
+		'towny_prevent_protector', true),
+	-- must be invited to towns / nations
+	setting_invite = minetest.settings:get_bool('towny_invite', true),
+	setting_vertical_towns = 
+		minetest.settings:get_bool('towny_vertical_towns', false),
+	setting_autosave_interval = 
+		tonumber(minetest.settings:get(
+		'towny_autosave_interval')) or 900,
+	setting_economy = false,
 
 	--[[
 	--	rnao
@@ -93,8 +93,10 @@ towny = {
 		town = nil, -- town, resident town
 		is_mayor = false,
 	},
-	
-	block_array = {}, -- Mapblocks loaded into memory cache
+
+	-- Mapblocks loaded into memory cache, when a block is deleted, the
+	-- array will be rearranged
+	block_array = {},
 	block_count = 0, -- Greatest index in block_array
 	block_id_count = 0, -- Greatest current id for blocks, an id for a
 				-- class always stays the same

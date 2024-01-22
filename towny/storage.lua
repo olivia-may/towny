@@ -241,7 +241,7 @@ end)
 minetest.register_globalstep(function (dtime)
 	clock = clock + dtime
 	-- Autosave every x seconds
-	if clock > towny.settings.autosave_interval then
+	if clock > towny.setting_autosave_interval then
 		print("[towny] Autosaving towny memory to storage.")
 		towny.storage_save()
 		clock = 0
