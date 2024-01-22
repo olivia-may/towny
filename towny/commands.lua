@@ -1,12 +1,10 @@
--- Commands
-
 -- Privileges
 
 minetest.register_privilege("towny", {
 	description = "Can create and join towns",
 })
 
-minetest.register_privilege("towny_admin", {
+minetest.register_privilege("townyadmin", {
 	description = "Can administrate other people's towns",
 	give_to_singleplayer = false
 })
@@ -189,7 +187,14 @@ local function get_paramc_and_paramv(params)
 	return paramc, paramv
 end
 
-local function towny_command(player_name, params)
+-- Commands
+
+minetest.register_chatcommand("townyadmin", {
+	description = "Settings for players with the 'townyadmin' priv. Run /townyadmin help for more information.",
+	privs = {townyadmin = true},
+	func =
+
+function (player_name, params)
 	
 	local player = minetest.get_player_by_name(player_name)
 	if not player then return false, "Can't run command on behalf of offline player." end
@@ -198,7 +203,7 @@ local function towny_command(player_name, params)
 
 	if paramv[1]:len() == 0 then
 		-- TODO: towny info
-		return true, "towny"
+		return true, "townyadmin"
 	end
 
 	if paramv[1] == "delete" then
@@ -220,9 +225,36 @@ local function towny_command(player_name, params)
 		
 		return false, "WARNING: This will PERMANENTLY DELETE ALL TOWNY DATA for this server! The data would be wiped and the server would shut down. Please run this command again with 'I WANT TO DELETE ALL TOWNY DATA' without the ' quotes in all caps typed after it."
 	end
-end
 
-local function town_command(player_name, params)
+	return false
+end})
+
+minetest.register_chatcommand("towny", {
+	description = "View and manage your towny settings Run /towny help for more information.",
+	privs = {towny = true},
+	func =
+
+function (player_name, params)
+	
+	local player = minetest.get_player_by_name(player_name)
+	if not player then return false, "Can't run command on behalf of offline player." end
+	
+	local paramc, paramv = get_paramc_and_paramv(params)
+
+	if paramv[1]:len() == 0 then
+		-- TODO: towny info
+		return true, "towny"
+	end
+
+	return false
+end})
+
+minetest.register_chatcommand("town", {
+	description = "Manage your town. Run /town help for more information.",
+	privs = {towny = true},
+	func =
+
+function (player_name, params)
 
 	local player = minetest.get_player_by_name(player_name)
 	if not player then return false, "Can't run command on behalf of offline player." end
@@ -243,7 +275,7 @@ local function town_command(player_name, params)
 		return true, "help" --print_help(pr2)
 	end
 
-	if paramv[1] == "visualize" then
+	if paramv[1] == "show" then
 		if not resident.town then
 			return false, "You have no town to visualize."
 		end
@@ -392,26 +424,14 @@ local function town_command(player_name, params)
 	end
 	]]--
 
-	return false, "towny: Invalid command usage."
-end
-
-local function plot_command()
-end
-
-minetest.register_chatcommand("town", {
-	description = "Manage your town. Run /town help for more information.",
-	privs = {towny = true},
-	func = town_command
-})
-
-minetest.register_chatcommand("towny", {
-	description = "View and manage your towny settings Run /towny help for more information.",
-	privs = {towny = true},
-	func = towny_command
-})
+	return false
+end})
 
 minetest.register_chatcommand("plot", {
 	description = "Manage your town plot. Run /town help plot for more information.",
 	privs = {towny = true},
-	func = plot_command
-})
+	func =
+
+function (player_name, params)
+	return true, "plot"
+end})
