@@ -41,15 +41,14 @@ towny = {
 	NATION = 4,
 	RESIDENT = 8,
 
-	-- (claimed by a town) mapblock class / struct
+	-- (claimed by a town) mapblock class / struct, always owned by a town.
 	block = {
-		id = 0, -- unique id
-		index = 0, -- index where this block lives in `block_array`
+		id = 0, -- town specific id
 		name = "",
-		town_id = 0, -- int, id of town that owns this block
 		town = nil, -- town, pointer to owner town
+		town_id = 0,
 		is_plotted = false,
-		plot_id = 0, -- int , Plot ID if this claim block is plotted
+		--plot_id = 0, -- int , Plot ID if this claim block is plotted
 		is_town_center = false,
 		blockpos = {}, -- vector, block position
 		pos_min = {}, -- vector, min pos
@@ -62,44 +61,36 @@ towny = {
 
 	-- TODO: plots
 	
-	-- Town class / struct
+	-- Town class / struct, can be nationless
 	town = {
-		blocks = {}, -- block table
-		block_count = 0,
-		center_block = nil, -- block, town center block
 		id = 0,
-		index = 0,
+		block_array = {}, -- block table, towns keep track of blocks
+		block_count = 0,
+		block_id_count = 0,
+		center_block = nil, -- block, town center block
 		name = "",
-		members = {}, -- resident table
+		member_array = {}, -- resident table
 		member_count = 0,
-		mayors = {}, -- resident table
-		mayor_count = 0,
-		pos = {}, -- vector
+		pos = {}, -- vector, for spawning (teleporting)
 	},
 
-	-- resident class / struct
+	-- resident class / struct, can be townless
 	resident = {
 		-- TODO: implement friends
 		-- int, resident[1] [2] [3] etc. are resident's friend's ids
-		friends = {}, -- resident table
+		friend_array = {}, -- resident table
 		-- greatest index of resident friend ids and `friends`
 		friend_count = 0, 
-		id = 0,
-		index = 0,
 		nickname = "", -- changeable name
 		name = "", -- minetest name ex. 'singleplayer'
-		town_id = 0, -- resident town id
+		town_id = 0, -- resident town index, 0 when townless
 		town = nil, -- town, resident town
 		is_mayor = false,
 	},
 
-	-- Mapblocks loaded into memory cache, when a block is deleted, the
-	-- array will be rearranged
-	block_array = {},
-	block_count = 0, -- Greatest index in block_array
-	block_id_count = 0, -- Greatest current id for blocks, an id for a
-				-- class always stays the same
-	
+	-- Arrays of blocks/towns/resident pointers, when an index is deleted, the
+	-- array will be rearranged.
+
 	town_array = {},
 	town_count = 0,
 	town_id_count = 0,
@@ -108,6 +99,8 @@ towny = {
 	resident_count = 0,
 	resident_id_count = 0,
 	
+	storage = minetest.get_mod_storage(),
+
 	-- economy
 	eco     = {},
 	
@@ -206,8 +199,37 @@ towny = {
 	]]--
 }
 
-dofile(towny.modpath .. "/storage.lua")
+towny.block.__index = towny.block
+towny.town.__index = towny.town
+towny.resident.__index = towny.resident
+
+function towny.get_index_by_id(array, count, id)
+
+	for i = 1, count do
+		if array[i].id == id then
+			return i
+		end
+	end
+
+	return nil
+end
+
+function towny.array_remove(array, count, id)
+
+	local index = towny.get_index_by_id(array, count, id)
+
+	for i = index, count do
+		array[i] = array[i + 1]
+	end
+	array[count] = nil
+end
+
+function towny.convert_to_vector(xyz_table)
+	return vector.new(xyz_table.x, xyz_table.y, xyz_table.z)
+end
+
 dofile(towny.modpath .. "/resident.lua")
 dofile(towny.modpath .. "/block.lua")
 dofile(towny.modpath .. "/town.lua")
+dofile(towny.modpath .. "/storage.lua")
 dofile(towny.modpath .. "/commands.lua")

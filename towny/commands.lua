@@ -96,18 +96,22 @@ local function create_town_info_str(town)
 	local str = ""
 	local i
 
-	str = str .. town.name .. "\nMayor(s): ["
-	for i = 1, town.mayor_count do
-		if town.mayors[i] then
-			str = str .. town.mayors[i].nickname .. " "
-		end
-	end
-	str = str .. "]\nLocation: " .. town.pos:to_string() .. "\nMembers: ["
+	local mayors_str = ""
+	local members_str = ""
+
 	for i = 1, town.member_count do
-		if town.members[i] then
-			str = str .. town.members[i].nickname .. " "
+		
+		members_str = members_str .. town.member_array[i].nickname .. " "
+
+		if town.member_array[i].is_mayor then
+			mayors_str = mayors_str .. town.member_array[i].nickname .. " "
 		end
 	end
+	
+	str = str .. town.name .. "\nMayor(s): ["
+	str = str .. mayors_str
+	str = str .. "]\nLocation: " .. town.pos:to_string() .. "\nMembers: ["
+	str = str .. members_str
 	str = str .. "]\nOwned blocks: " .. town.block_count
 
 	return str
@@ -164,8 +168,9 @@ local function create_towny_help_str()
 end
 ]]--
 
--- get parameter count (paramc), and array of parameter strings (paramv)
-local function get_paramc_and_paramv(params)
+
+-- get parameter count `paramc`, and array of parameter strings `paramv`
+local function get_paramc_and_paramv(str)
 	local paramc = 0
 	local paramv = {}
 	local index
@@ -173,13 +178,13 @@ local function get_paramc_and_paramv(params)
 
 	while true do
 		-- find index of ' ' space character, stop when no match
-		index = string.find(params, ' ', i, true)
+		index = string.find(str, ' ', i, true)
 		paramc = paramc + 1
 		if index then
-			paramv[paramc] = string.sub(params, i, index - 1)
+			paramv[paramc] = string.sub(str, i, index - 1)
 			i = index + 1
 		else 
-			paramv[paramc] = string.sub(params, i)
+			paramv[paramc] = string.sub(str, i)
 			break
 		end
 	end
@@ -257,7 +262,11 @@ minetest.register_chatcommand("town", {
 function (player_name, params)
 
 	local player = minetest.get_player_by_name(player_name)
-	if not player then return false, "Can't run command on behalf of offline player." end
+	if not player then 
+		return false, "Can't run command on behalf of offline player."
+	end
+	
+	local player_pos = towny.get_player_pos(player)
 	
 	local paramc, paramv = get_paramc_and_paramv(params)
 	local resident = towny.get_resident_by_name(player_name)
@@ -277,39 +286,54 @@ function (player_name, params)
 
 	if paramv[1] == "show" then
 		if not resident.town then
-			return false, "You have no town to visualize."
+			return false, "You have no town to show."
 		end
 		towny.visualize_town(resident.town)
 		return true
 	end
 
-	if paramv[1] == "extend" or paramv[1] == "claim" then
+	if paramv[1] == "claim" then
 		if not resident.town then
 			return false, "You don't have a town!"
 		end
 	
-		local player_pos = towny.get_player_pos(player)
-		local i
-		for i = 1, towny.block_count do
-			local block = towny.block_array[i]
-			if player_pos.x > block.pos_min.x and 
-				player_pos.x < block.pos_max.x and
-				player_pos.y > block.pos_min.y and 
-				player_pos.y < block.pos_max.y and
-				player_pos.z > block.pos_min.z and 
-				player_pos.z < block.pos_max.z then
-				
-				return false, "This area is already claimed!"
-			end
+		if towny.get_block_by_pos(player_pos) then
+
+			return false, "This area is already claimed!"
 		end
 
-
-		towny.extend_town(towny.get_player_pos(player), resident.town)
-		return true, "Successfully claimed block " .. resident.town.blocks[resident.town.block_count].blockpos:to_string() .. "."
+		local block = towny.block.new(player_pos, resident.town)
+		
+		towny.visualize_block(block)
+		
+		return true, 
+			"Successfully claimed block " .. block.blockpos:to_string() .. "."
 	end
 
-	if (paramc > 1) then
-		if (paramv[1] == "create" or paramv[1] == "new") then
+	if paramv[1] == "unclaim" then
+		if not resident.town then
+			return false, "You don't have a town!"
+		end
+
+		local block = towny.get_block_by_pos(player_pos)
+
+		if not block then
+			return false, "This area is not claimed."
+		end
+
+		if block.is_town_center then
+			return false, "You can not unclaim your town center! Try /town delete or move your town center."
+		end
+
+		local str = "Unclaimed block " .. block.blockpos:to_string() .. "."
+		
+		block:delete()
+
+		return true, str 
+	end
+
+	if paramc > 1 then
+		if paramv[1] == "new" then
 			
 			if resident.town then
 				return false, "You're already in a town!" 

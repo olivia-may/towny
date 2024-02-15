@@ -7,14 +7,12 @@ function towny.block.new(pos, town)
 	
 	local block = {}
 	setmetatable(block, towny.block)
-	towny.block.__index = towny.block
 
-	towny.block_count = towny.block_count + 1
-	block.index = towny.block_count
-	towny.block_array[block.index] = block
+	town.block_count = town.block_count + 1
+	town.block_array[town.block_count] = block
 
-	towny.block_id_count = towny.block_id_count + 1
-	block.id = towny.block_id_count
+	town.block_id_count = town.block_id_count + 1
+	block.id = town.block_id_count
 
 	block.blockpos = vector.new(math.floor(pos.x / 16),
 		math.floor(pos.y / 16),
@@ -27,15 +25,44 @@ function towny.block.new(pos, town)
 	block.town_id = town.id
 	block.town = town
 
-	town.block_count = town.block_count + 1
-	town.blocks[town.block_count] = block
-
 	block.perm_build = towny.NO_PERMS
 	block.perm_destroy = towny.NO_PERMS
 	block.perm_switch = towny.NO_PERMS
 	block.perm_itemuse = towny.NO_PERMS
 
 	return block
+end
+
+-- block class constructor for when storage is loaded
+function towny.block.new_from_data(data)
+
+	local block = {}
+	setmetatable(block, towny.block)
+	
+	block.id = data.id
+	block.name = data.name
+	block.town_id = data.town_id
+	--block.is_plotted = data.is_plotted
+	--block.plot_id = data.plot_id
+	block.is_town_center = data.is_town_center
+	block.blockpos = towny.convert_to_vector(data.blockpos)
+	block.pos_min = towny.convert_to_vector(data.pos_min)
+	block.pos_max = towny.convert_to_vector(data.pos_max)
+	block.perm_build = data.perm_build
+	block.perm_destroy = data.perm_destroy
+	block.perm_switch = data.perm_switch
+	block.perm_itemuse = data.perm_itemuse
+
+	return block
+end
+
+-- block class destructor
+function towny.block:delete()
+
+	towny.array_remove(self.town.block_array, self.town.block_count, self.id)
+	self.town.block_count = self.town.block_count - 1
+	towny.storage:set_string("block " .. self.town_id .. " " .. self.id, "")
+	self = nil
 end
 
 -- Visualize an area
@@ -78,29 +105,26 @@ function towny.visualize_block(block)
 	minetest.add_entity(vector.add(block.pos_min, 8), "towny:block_visual")
 end
 
-function towny.get_block_by_id(block_id)
-
-	local i
-	for i = 1, towny.block_count do
-		if towny.block_array[i].id == block_id then
-			return towny.block_array[i]
-		end
-	end
-
-	return nil
-end
-
 -- Test to see if a position is in a block, return block
 function towny.get_block_by_pos(pos)
-	for _, block in ipairs(towny.block_array) do
-		if pos.x > block.pos_min.x and 
-			pos.x < block.pos_max.x and
-			pos.y > block.pos_min.y and 
-			pos.y < block.pos_max.y and
-			pos.z > block.pos_min.z and 
-			pos.z < block.pos_max.z then
 
-			return block
+	local block
+	local town
+	
+	for i = 1, towny.town_count do
+		town = towny.town_array[i]
+
+		for j = 1, town.block_count do
+			block = town.block_array[j]
+			if pos.x > block.pos_min.x and 
+				pos.x < block.pos_max.x and
+				pos.y > block.pos_min.y and 
+				pos.y < block.pos_max.y and
+				pos.z > block.pos_min.z and 
+				pos.z < block.pos_max.z then
+
+				return block
+			end
 		end
 	end
 

@@ -29,15 +29,13 @@ function towny.town.new(player, town_name)
         
 	local town = {}
 	setmetatable(town, towny.town)
-	towny.town.__index = towny.town
 
 	towny.town_count = towny.town_count + 1
-	town.index = towny.town_count
-	towny.town_array[town.index] = town
-
+	towny.town_array[towny.town_count] = town
+	
 	towny.town_id_count = towny.town_id_count + 1
 	town.id = towny.town_id_count
-	
+
 	local block = towny.block.new(towny_player_pos, town)
 	block.is_town_center = true
 	
@@ -46,10 +44,7 @@ function towny.town.new(player, town_name)
 	town.name = town_name
 
 	town.member_count = town.member_count + 1
-	town.members[town.member_count] = res
-	
-	town.mayor_count = town.mayor_count + 1
-	town.mayors[town.mayor_count] = res
+	town.member_array[town.member_count] = res
 	
 	res.town_id = town.id
 	res.town = town
@@ -102,17 +97,13 @@ end
 
 
 function towny.visualize_town(town)
-	for i, block in ipairs(town.blocks) do
-		towny.visualize_block(block)
+	for i = 1, town.block_count do
+		towny.visualize_block(town.block_array[i])
 	end
 end
 
+--[[
 function towny.extend_town(player_pos, town)
-
-	local block = towny.block.new(player_pos, town)
-	
-	towny.visualize_block(block)
-	--[[
 	local data = towny.towns[town]
 	if data.flags['mayor'] ~= player and data.members[player]['claim_create'] ~= true then
 		return err_msg(player, "You do not have permission to spend claim blocks in your town.")
@@ -137,10 +128,8 @@ function towny.extend_town(player_pos, town)
 	end
 
 	towny.regions.visualize_area(p1,p2,pos)
-	]]--
 end
 
---[[
 function towny.abridge_town(pos,player)
 	local towny_admin = minetest.check_player_privs(player, { towny_admin = true })
 	if not pos then
