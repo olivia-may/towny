@@ -288,7 +288,7 @@ function (player_name, params)
 		if not resident.town then
 			return false, "You have no town to show."
 		end
-		towny.visualize_town(resident.town)
+		towny.visualize_town(resident)
 		return true
 	end
 

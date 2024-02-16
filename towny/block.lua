@@ -17,10 +17,10 @@ function towny.block.new(pos, town)
 	block.blockpos = vector.new(math.floor(pos.x / 16),
 		math.floor(pos.y / 16),
 		math.floor(pos.z / 16))
-	block.pos_min = vector.new(block.blockpos.x * 16 - 0.5,
-		block.blockpos.y * 16 - 0.5,
-		block.blockpos.z * 16 - 0.5)
-	block.pos_max = vector.add(block.pos_min, 16)
+	block.pos_min = vector.new(block.blockpos.x * 16,
+		block.blockpos.y * 16,
+		block.blockpos.z * 16)
+	block.pos_max = vector.add(block.pos_min, 15)
 	
 	block.town_id = town.id
 	block.town = town
@@ -65,44 +65,55 @@ function towny.block:delete()
 	self = nil
 end
 
--- Visualize an area
--- TODO: Use particles
-
-minetest.register_entity("towny:block_visual", {
-
-	initial_properties = {
-		hp 		= 1,
-		glow 		= 1,
-		physical 	= false,
-		pointable 	= true,
-		visual 		= "cube",
-		-- 16 is mapblock size
-		visual_size = {x = 16, y = 16},
-		textures = {
-			"towny_block_visual.png", "towny_block_visual.png",
-			"towny_block_visual.png", "towny_block_visual.png",
-			"towny_block_visual.png", "towny_block_visual.png"
-		},
-		static_save = false,
-		use_texture_alpha = true,
-	},
-
-	on_punch = function(self)
-		return true
-	end,
-	timer = 0,
-	on_step = function (self,dtime)
-		self.timer = self.timer + dtime
-		-- 10 seconds
-		if self.timer > 10 then
-			self.object:remove()
-		end
+-- Visualize a block
+function towny.visualize_block(block, player_name)
+	
+	local i
+	for i = 0, 15 do
+	
+		-- sides
+		
+		minetest.add_particle({
+			pos = vector.add(
+				block.pos_min,
+				vector.new(0, i, 0)
+			),
+			expirationtime = 10,
+			size = 10,
+			texture = "towny_block_visual.png",
+			playername = player_name,
+		})
+		minetest.add_particle({
+			pos = vector.add(
+				vector.new(block.pos_max.x, block.pos_min.y, block.pos_min.z),
+				vector.new(0, i, 0)
+			),
+			expirationtime = 10,
+			size = 10,
+			texture = "towny_block_visual.png",
+			playername = player_name,
+		})
+		minetest.add_particle({
+			pos = vector.add(
+				vector.new(block.pos_max.x, block.pos_min.y, block.pos_max.z),
+				vector.new(0, i, 0)
+			),
+			expirationtime = 10,
+			size = 10,
+			texture = "towny_block_visual.png",
+			playername = player_name,
+		})
+		minetest.add_particle({
+			pos = vector.add(
+				vector.new(block.pos_min.x, block.pos_min.y, block.pos_max.z),
+				vector.new(0, i, 0)
+			),
+			expirationtime = 10,
+			size = 10,
+			texture = "towny_block_visual.png",
+			playername = player_name,
+		})
 	end
-})
-
-function towny.visualize_block(block)
-	-- 8 is half mapblock size
-	minetest.add_entity(vector.add(block.pos_min, 8), "towny:block_visual")
 end
 
 -- Test to see if a position is in a block, return block

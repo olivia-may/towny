@@ -96,9 +96,9 @@ function towny.get_player_pos(player)
 end
 
 
-function towny.visualize_town(town)
-	for i = 1, town.block_count do
-		towny.visualize_block(town.block_array[i])
+function towny.visualize_town(res)
+	for i = 1, res.town.block_count do
+		towny.visualize_block(res.town.block_array[i], res.name)
 	end
 end
 
