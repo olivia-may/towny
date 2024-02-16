@@ -3,10 +3,11 @@
 This is a [minetest](https://minetest.net/) mod based on the popular 
 [Minecraft server mod](http://towny.palmergames.com/) of the same name.
 
-At it's current state, it's a glorified semi-fixed-grid protection system
+At it's current state, it's a glorified fixed-grid protection system
 based on claims and plots. This mod is a work in progress, There are a lot of
 missing features and possibly some bugs. There will be a lot of changes until
-a stable release is made.
+a stable release is made. Much of the code is commented out because it hasn't
+been refactored yet.
 
 **Forum Post:** https://forum.minetest.net/viewtopic.php?f=9&t=21912
 
@@ -38,6 +39,7 @@ Plots are town claim blocks that can be owned by a town resident. Plots can have
 #### /town
 * [x] new {town name} - Create a town right where you're standing
 * [x] claim - Claim more land for your town. Must be called right outside of an existing town claim.
+* [x] unclaim - Remove a claimed block from your town.
 * [ ] delete - Delete your town, careful!
 * [ ] invite {resident} - Invite a player to your town
 * [ ] kick {resident} - Remove user from your town.
@@ -45,5 +47,5 @@ Plots are town claim blocks that can be owned by a town resident. Plots can have
 #### /plot
 * [ ] /plot claim - Create/claim a plot
 * [ ] /plot set claimable true - Set the plot as claimable by other town members
-* [ ] /plot member add/del <resident> - Add/remove a person from a plot. Adding people to your plot will let them build on it.
+* [ ] /plot member add/del {resident} - Add/remove a person from a plot. Adding people to your plot will let them build on it.
 * [ ] /plot show - Highlight the bounds of your nearest owned plot.
